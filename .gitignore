@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *.pyo
+*$py.class
+*.so
 .venv/
 venv/
 env/
@@ -9,16 +11,30 @@ env/
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 Thumbs.db
 .DS_Store
+desktop.ini
 
-# Data (large files - keep structure but not DB)
-data/workshop.db
+# Database
+data/*.db
 
-# Models (generated files - can be retrained)
+# Models (large binary - can be retrained)
 models/*.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
 
 # Streamlit
 streamlit_out.txt
