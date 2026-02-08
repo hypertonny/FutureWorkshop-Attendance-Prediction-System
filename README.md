@@ -330,7 +330,7 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 ### Built with ☕ by Rahul Purohit
 
-*Reg: 2024SEPVUGP0079 · School of Technology — Vijaybhoomi University*
+*Reg: 2024SEPVUGP0079 · VSST — Vijaybhoomi University*
 
 <br>
 
