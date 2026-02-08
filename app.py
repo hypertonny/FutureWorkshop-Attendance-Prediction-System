@@ -544,7 +544,7 @@ elif page == "🔮  Predict Attendance":
             promotion_level = st.selectbox("Promotion Level", ['Low', 'Medium', 'High'])
         
         st.markdown("")
-        submitted = st.form_submit_button("🎯 Predict Attendance", use_container_width=True)
+        submitted = st.form_submit_button("🎯 Predict Attendance", width="stretch")
     
     if submitted:
         event_details = {
@@ -884,7 +884,7 @@ elif page == "⚙️  Model Performance":
             if comp_data:
                 st.dataframe(
                     pd.DataFrame(comp_data).set_index('Model'),
-                    use_container_width=True
+                    width="stretch"
                 )
             
             # grouped bar chart comparison
