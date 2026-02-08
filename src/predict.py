@@ -111,8 +111,10 @@ def predict_single_event(event_details, historical_df):
     # then aggregate to get expected total attendance
     
     # get unique students from historical data
-    students = historical_df[['student_id', 'department', 'semester', 
-                               'club_activity_level']].drop_duplicates('student_id')
+    student_cols = ['student_id', 'department', 'semester', 'club_activity_level']
+    if 'cgpa' in historical_df.columns:
+        student_cols.append('cgpa')
+    students = historical_df[student_cols].drop_duplicates('student_id')
     
     num_registered = event_details.get('num_registrations', 50)
     
@@ -131,12 +133,14 @@ def predict_single_event(event_details, historical_df):
             'department': student['department'],
             'semester': student['semester'],
             'club_activity_level': student['club_activity_level'],
-            'registration_timing': 'Medium',  # default assumption
+            'registration_timing': 'On-time',  # most common timing (~45%)
             'attended': 0,  # placeholder
             'past_attendance_rate': 0.0,
             'past_events_count': 0,
             **event_details
         }
+        if 'cgpa' in student.index:
+            row['cgpa'] = student['cgpa']
         pred_rows.append(row)
     
     pred_df = pd.DataFrame(pred_rows)

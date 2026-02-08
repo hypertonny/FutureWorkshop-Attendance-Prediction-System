@@ -224,7 +224,7 @@ def add_interaction_features(df):
     )
     
     # registration commitment: early + high_regs = strong signal
-    timing_map_num = {'Early': 3, 'Medium': 2, 'Late': 1}
+    timing_map_num = {'Early': 3, 'On-time': 2, 'Late': 1}
     df['reg_timing_numeric'] = df['registration_timing'].map(timing_map_num)
     df['registration_commitment'] = (
         df['reg_timing_numeric'] * df['registration_density']
@@ -246,7 +246,7 @@ def encode_categoricals(df):
     df = df.copy()
     
     # ordinal encoding (these have a natural order)
-    timing_map = {'Early': 3, 'Medium': 2, 'Late': 1}
+    timing_map = {'Early': 3, 'On-time': 2, 'Late': 1}
     df['registration_timing_encoded'] = df['registration_timing'].map(timing_map)
     
     promo_map = {'High': 3, 'Medium': 2, 'Low': 1}
