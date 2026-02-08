@@ -71,6 +71,13 @@ def prepare_data(df):
     X = df_featured[feature_cols]
     y = df_featured['attended']
     
+    # Fill any remaining NaN values (e.g. from first-event students)
+    # XGBoost handles NaN natively, but LR/RF do not
+    nan_count = X.isna().sum().sum()
+    if nan_count > 0:
+        print(f"[Data] Filling {nan_count} NaN values with column medians")
+        X = X.fillna(X.median())
+    
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )

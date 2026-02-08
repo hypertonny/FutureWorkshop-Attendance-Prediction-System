@@ -2,10 +2,11 @@
 main.py - Entry point for the Workshop Attendance Prediction System
 ====================================================================
 Run this script to:
-  1. Initialize the SQLite database
-  2. Load CSV data into the database
-  3. Train ML models (XGBoost, Random Forest, Logistic Regression)
-  4. Save the best model
+  1. Auto-generate synthetic data if master_dataset.csv is missing
+  2. Initialize the SQLite database
+  3. Load CSV data into the database
+  4. Train ML models (XGBoost, Random Forest, Logistic Regression)
+  5. Save the best model
 
 After running this, you can:
   - Launch the dashboard:  streamlit run app.py
@@ -34,10 +35,12 @@ def main():
     
     csv_path = os.path.join(BASE_DIR, "master_dataset.csv")
     
+    # Auto-generate data if CSV is missing (fresh-from-clone support)
     if not os.path.exists(csv_path):
-        print(f"[Error] Dataset not found at: {csv_path}")
-        print("  Please place master_dataset.csv in the project root.")
-        sys.exit(1)
+        print(f"\n[DataGen] master_dataset.csv not found — generating from scratch...")
+        from generate_data import generate_default_dataset
+        generate_default_dataset(output_path=csv_path)
+        print(f"[DataGen] Dataset ready at: {csv_path}")
     
     # Step 1: Initialize database
     print("\n[Step 1/3] Initializing database...")
