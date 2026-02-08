@@ -107,7 +107,7 @@ This project uses **synthetically generated data** — no external download requ
 
 - **500 students** across 4 VBU schools, each with randomized CGPA, club activity, and semester
 - **100 workshop events** spanning 16 cross-school topics, with varied speakers, time slots, and modes
-- **~8 000 registrations** with attendance determined by 10+ realistic factors (club activity, speaker type, exam proximity, topic popularity, registration timing, etc.)
+- **~3 900 registrations** with attendance determined by 10+ realistic factors (club activity, speaker type, exam proximity, topic popularity, registration timing, etc.)
 
 > On a fresh clone, `python main.py` calls `generate_data.py` automatically if no CSV exists — the repo is fully self-contained.
 
@@ -275,9 +275,9 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 | Model                                  | F1 Score        | AUC-ROC         | Accuracy        |
 | -------------------------------------- | --------------- | --------------- | --------------- |
-| XGBoost                                | 0.733           | 0.778           | 0.656           |
-| Random Forest                          | 0.736           | 0.785           | 0.683           |
-| **Logistic Regression (Winner)** | **0.748** | **0.801** | **0.683** |
+| XGBoost                                | 0.701           | 0.787           | 0.698           |
+| Random Forest                          | 0.732           | 0.807           | 0.710           |
+| **Logistic Regression (Winner)** | **0.734** | **0.827** | **0.728** |
 
 > F1 is the primary metric — accuracy alone is misleading with imbalanced data.
 > Winner is auto-selected by highest F1 score. Results vary by seed.

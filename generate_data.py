@@ -98,11 +98,12 @@ def synthesize_from_scratch(n_students=500, n_events=100, seed=42):
     })
     
     # ---- Generate Registrations ----
-    # each event gets a random subset of students (30-80% register)
+    # each event gets a random subset of students (3-12% register per event)
+    # realistic for VBU: 15-60 students per workshop, ~3500 total registrations
     registrations = []
     for _, evt in events.iterrows():
-        reg_fraction = rng.uniform(0.08, 0.25)
-        n_reg = max(10, int(n_students * reg_fraction))
+        reg_fraction = rng.uniform(0.03, 0.12)
+        n_reg = max(8, int(n_students * reg_fraction))
         reg_students = rng.choice(students['student_id'].values, size=n_reg, replace=False)
         
         for sid in reg_students:
