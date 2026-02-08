@@ -152,9 +152,9 @@ The Streamlit dashboard has **5 interactive pages** with a branded splash screen
                                     │ 16 topics × 4 VBU schools
                                     ▼
 ┌──────────────────┐     ┌──────────────────────┐
-│   main.py        │────▶│  SQLite Database      │
+│   main.py        │──▶│  SQLite Database .    │
 │   (orchestrator) │     │  Students · Events ·  │
-│                  │     │  Registrations · Models│
+│                  │     │ Registrations · Models│
 └──────────────────┘     └──────────┬───────────┘
                                     │ SQL JOIN query
                                     ▼
