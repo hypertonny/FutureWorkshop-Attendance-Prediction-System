@@ -32,12 +32,9 @@ The problem is painfully simple:
 
 When a guest takes time out of their schedule to come speak at our campus, they deserve to see a room full of engaged students — not rows of empty chairs. And when students *do* show up, they deserve a well-organized event, not a chaotic scramble because we overbooked.
 
-**We can't over-book our auditorium** (fire safety, seating limits), but we also can't afford to under-prepare. Without a reliable prediction of actual turnout, organizers are stuck guessing — and that leads to:
 
-- **Wasted resources** — catering, printed materials, AV setup for a crowd that never comes
 - **Embarrassed guests** — speakers who prepared for 100 people but present to 20
-- **Missed learning** — if we knew turnout would be low, we could have promoted harder or rescheduled
-- **Over-booking risk** — accepting 200 registrations for a 120-seat auditorium because "only half will come" is a gamble
+- **Missed learning** — if we knew turnout would be low, we could have promoted harder or rescheduled2
 
 With four distinct schools (Technology, Design, Business, Music) running cross-disciplinary workshops on 16 different topics, the attendance pattern isn't random — it's *predictable*. A Data Science talk will pack the room with Tech students but barely draw from Music. An industry speaker on a weekday afternoon during exams? Expect a ghost town.
 
@@ -49,33 +46,33 @@ With four distinct schools (Technology, Design, Business, Music) running cross-d
 
 A machine learning pipeline that learns from **historical attendance patterns** — which topics draw which schools, how speaker type affects turnout, whether exam season kills attendance — and predicts how many students will *actually* walk through the auditorium doors for a new event.
 
-**For organizers:** Know in advance if you'll get 30 or 130 — plan seating, catering, and promotion accordingly.  
+**For organizers:** Know in advance if you'll get 30 or 130 — plan seating, catering, and promotion accordingly.
 **For guest speakers:** Walk into a room that's full, not half-empty. Their time and expertise deserve that respect.
 
 ### Vijaybhoomi University — 4 Schools
 
-| School | Domain Topics |
-|--------|--------------|
-| 🖥️ **School of Technology** | Data Science, ML, AI & Deep Learning, Web Dev, Cybersecurity, Cloud Computing |
-| 🎨 **School of Design** | UI/UX Design, Design Thinking, Branding & Identity, Creative Coding |
-| 💼 **School of Business** | Entrepreneurship, Digital Marketing, Product Management |
-| 🎵 **School of Music** | Music Production, Sound Design |
+| School                             | Domain Topics                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| 🖥️**School of Technology** | Data Science, ML, AI & Deep Learning, Web Dev, Cybersecurity, Cloud Computing |
+| 🎨**School of Design**       | UI/UX Design, Design Thinking, Branding & Identity, Creative Coding           |
+| 💼**School of Business**     | Entrepreneurship, Digital Marketing, Product Management                       |
+| 🎵**School of Music**        | Music Production, Sound Design                                                |
 
 The model captures **school-topic affinity** — e.g., Technology students are more likely to attend a Data Science workshop, while Design students gravitate toward UI/UX events.
 
 ### Key Features
 
-| Feature | Description |
-|---------|-------------|
-| 🤖 **3-Model Comparison** | XGBoost + Random Forest + Logistic Regression — automatically picks the winner by F1 |
-| 📊 **69 Engineered Features** | From 19 raw columns → rich behavioral signals including school-topic affinity |
-| 🏫 **Cross-School Intelligence** | School-topic affinity modeling for all 4 VBU schools & 16 workshop topics |
-| 🧪 **Standalone Data Generator** | Synthesize realistic data from scratch — no CSV needed |
-| ♻️ **Auto-Retraining Pipeline** | Hot-swap models with 1% improvement gate |
-| 📊 **Interactive Dashboard** | 5-page Streamlit app with predictions, analytics & splash screen |
-| 🗄️ **Scalable Database** | SQLite now, PostgreSQL-ready (just change one line) |
-| ⚖️ **Imbalanced Data Handling** | SMOTE + threshold optimization for real-world skew |
-| 🔄 **Fresh-Clone Ready** | `python main.py` auto-generates data if CSV is missing |
+| Feature                                | Description                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| 🤖**3-Model Comparison**         | XGBoost + Random Forest + Logistic Regression — automatically picks the winner by F1 |
+| 📊**69 Engineered Features**     | From 19 raw columns → rich behavioral signals including school-topic affinity        |
+| 🏫**Cross-School Intelligence**  | School-topic affinity modeling for all 4 VBU schools & 16 workshop topics             |
+| 🧪**Standalone Data Generator**  | Synthesize realistic data from scratch — no CSV needed                               |
+| ♻️**Auto-Retraining Pipeline** | Hot-swap models with 1% improvement gate                                              |
+| 📊**Interactive Dashboard**      | 5-page Streamlit app with predictions, analytics & splash screen                      |
+| 🗄️**Scalable Database**        | SQLite now, PostgreSQL-ready (just change one line)                                   |
+| ⚖️**Imbalanced Data Handling** | SMOTE + threshold optimization for real-world skew                                    |
+| 🔄**Fresh-Clone Ready**          | `python main.py` auto-generates data if CSV is missing                              |
 
 ---
 
@@ -106,8 +103,7 @@ streamlit run app.py
 
 ### 📦 Data Source & Synthesis
 
-This project uses **synthetically generated data** — no external download required.  
-The script [`generate_data.py`](generate_data.py) creates realistic workshop attendance records from scratch using probability-based rules that mimic real student behavior at Vijaybhoomi University:
+This project uses **synthetically generated data** — no external download required.The script [`generate_data.py`](generate_data.py) creates realistic workshop attendance records from scratch using probability-based rules that mimic real student behavior at Vijaybhoomi University:
 
 - **500 students** across 4 VBU schools, each with randomized CGPA, club activity, and semester
 - **100 workshop events** spanning 16 cross-school topics, with varied speakers, time slots, and modes
@@ -134,13 +130,13 @@ python generate_data.py --help
 
 The Streamlit dashboard has **5 interactive pages** with a branded splash screen and lazy-load animations:
 
-| Page | What it does |
-|------|-------------|
-| 🏠 **Overview** | Key metrics, attendance by topic & day-of-week charts |
-| 🔮 **Predict Attendance** | Enter event details → get predicted turnout + confidence |
-| 📈 **Attendance Trends** | Monthly trends, exam impact, speaker & time slot analysis |
-| 🔍 **Topic Analysis** | Deep-dive into any topic — department, semester, mode breakdown |
-| ⚙️ **Model Performance** | 3-model comparison table, bar chart, radar chart, feature importance |
+| Page                            | What it does                                                         |
+| ------------------------------- | -------------------------------------------------------------------- |
+| 🏠**Overview**            | Key metrics, attendance by topic & day-of-week charts                |
+| 🔮**Predict Attendance**  | Enter event details → get predicted turnout + confidence            |
+| 📈**Attendance Trends**   | Monthly trends, exam impact, speaker & time slot analysis            |
+| 🔍**Topic Analysis**      | Deep-dive into any topic — department, semester, mode breakdown     |
+| ⚙️**Model Performance** | 3-model comparison table, bar chart, radar chart, feature importance |
 
 ---
 
@@ -176,13 +172,13 @@ The Streamlit dashboard has **5 interactive pages** with a branded splash screen
 
 Raw data has weak correlations (~0.08). The pipeline creates **5 categories** of derived features:
 
-| Category | Examples | Why it helps |
-|----------|----------|-------------|
-| ⏰ **Temporal** | `semester_week`, `is_weekend`, `month` | Attendance drops late in semester |
-| 👤 **Student History** | `rolling_attendance`, `streak`, `recent_3_rate` | Past behavior predicts future |
-| 🔥 **Event Popularity** | `topic_popularity`, `speaker_pull`, `dept_engagement` | Some topics just hit different |
-| 🏫 **School-Topic Affinity** | `dept_topic_match` | Tech students → Data Science, Design students → UI/UX |
-| 🔗 **Interactions** | `combined_quality_attract`, `exam_pressure`, `registration_commitment` | Combined effects matter |
+| Category                          | Examples                                                                     | Why it helps                                            |
+| --------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
+| ⏰**Temporal**              | `semester_week`, `is_weekend`, `month`                                 | Attendance drops late in semester                       |
+| 👤**Student History**       | `rolling_attendance`, `streak`, `recent_3_rate`                        | Past behavior predicts future                           |
+| 🔥**Event Popularity**      | `topic_popularity`, `speaker_pull`, `dept_engagement`                  | Some topics just hit different                          |
+| 🏫**School-Topic Affinity** | `dept_topic_match`                                                         | Tech students → Data Science, Design students → UI/UX |
+| 🔗**Interactions**          | `combined_quality_attract`, `exam_pressure`, `registration_commitment` | Combined effects matter                                 |
 
 ### Model Training
 
@@ -215,37 +211,40 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 ## 📁 Project Structure
 
 ```
-├── main.py                    # Entry point: auto-generate data → init DB → train
-├── app.py                     # Streamlit dashboard (5 pages, splash screen)
+├── main.py                    # Entry point: generate data → init DB → train from DB
+├── app.py                     # Streamlit dashboard (5 pages + maintenance timelines)
+├── generate_data.py           # Standalone data synthesizer (CLI + programmatic)
 ├── requirements.txt           # Dependencies
-├── generate_data.py           # Standalone data generator (CLI + programmatic)
-├── master_dataset.csv         # Training data (auto-generated if missing)
 │
 ├── src/
 │   ├── __init__.py
-│   ├── database.py            # SQLAlchemy ORM (4 tables)
-│   ├── feature_engineering.py # 19 raw → 69 features (incl. school-topic affinity)
-│   ├── train_model.py         # XGBoost + RF + LR training + NaN imputation
-│   ├── retrain.py             # Hot-retraining pipeline (1% improvement gate)
-│   └── predict.py             # Prediction engine (handles missing columns)
+│   ├── database.py            # SQLAlchemy ORM (4 tables: Student, Event, Registration, ModelVersion)
+│   ├── feature_engineering.py # 20 raw → 69 features (incl. school-topic affinity)
+│   ├── train_model.py         # XGBoost + RF + LR training + NaN imputation + SMOTE
+│   ├── retrain.py             # Hot-retraining pipeline (1% F1 improvement gate)
+│   └── predict.py             # Prediction engine (handles missing columns gracefully)
 │
-├── models/                    # Auto-generated
-│   ├── *_latest.pkl           # Trained model files
-│   ├── *_latest_meta.json     # Model metadata
+├── models/                    # ⚠️ gitignored — auto-generated by main.py
+│   ├── *_latest.pkl           # Trained model files (joblib)
+│   ├── *_latest_meta.json     # Model metadata (threshold, features, scores)
 │   └── model_comparison.json  # 3-model comparison results
 │
-└── data/                      # Auto-generated (gitignored)
-    └── workshop.db            # SQLite database
+├── data/                      # ⚠️ gitignored — auto-generated
+│   └── workshop.db            # SQLite database (normalized: students + events + registrations)
+│
+└── master_dataset.csv         # ⚠️ gitignored — auto-generated by generate_data.py
 ```
+
+> **Fresh clone?** Just run `python main.py` — it generates data, builds the DB, and trains all models automatically.
 
 ---
 
 ## 📊 Current Model Performance
 
-| Model | F1 Score | AUC-ROC | Accuracy |
-|-------|----------|---------|----------|
-| XGBoost | 0.733 | 0.778 | 0.656 |
-| Random Forest | 0.736 | 0.785 | 0.683 |
+| Model                                  | F1 Score        | AUC-ROC         | Accuracy        |
+| -------------------------------------- | --------------- | --------------- | --------------- |
+| XGBoost                                | 0.733           | 0.778           | 0.656           |
+| Random Forest                          | 0.736           | 0.785           | 0.683           |
 | **Logistic Regression (Winner)** | **0.748** | **0.801** | **0.683** |
 
 > F1 is the primary metric — accuracy alone is misleading with imbalanced data.
@@ -256,15 +255,15 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **ML Models** | XGBoost, Random Forest, Logistic Regression (scikit-learn) |
-| **Data Balancing** | SMOTE (imbalanced-learn) |
-| **Database** | SQLite via SQLAlchemy ORM |
-| **Dashboard** | Streamlit + Plotly |
-| **Data Processing** | Pandas, NumPy |
-| **Visualization** | Plotly, Matplotlib, Seaborn |
-| **Serialization** | Joblib |
+| Layer                     | Technology                                                 |
+| ------------------------- | ---------------------------------------------------------- |
+| **ML Models**       | XGBoost, Random Forest, Logistic Regression (scikit-learn) |
+| **Data Balancing**  | SMOTE (imbalanced-learn)                                   |
+| **Database**        | SQLite via SQLAlchemy ORM                                  |
+| **Dashboard**       | Streamlit + Plotly                                         |
+| **Data Processing** | Pandas, NumPy                                              |
+| **Visualization**   | Plotly, Matplotlib, Seaborn                                |
+| **Serialization**   | Joblib                                                     |
 
 ---
 
@@ -283,14 +282,14 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 ## 🗓️ Updation & Maintenance Timelines
 
-| Phase | Frequency | Trigger | Action |
-|-------|-----------|---------|--------|
-| **🔄 Model Retraining** | Every semester start | New semester (Aug / Jan) | `python src/retrain.py` |
-| **📊 Data Refresh** | After every 10+ events | New attendance logged | `python src/retrain.py --from-db` |
-| **🔍 Performance Audit** | Monthly | Accuracy drops below threshold | Review features + threshold sweep |
-| **🧹 Data Cleanup** | End of each semester | Semester ends | Archive old data, regenerate baseline |
-| **🚀 Feature Updates** | As needed | New data sources (LMS, weather) | Update `feature_engineering.py`, retrain |
-| **🛡️ Dependency Updates** | Quarterly | Security patches / new releases | Update `requirements.txt`, test pipeline |
+| Phase                             | Frequency              | Trigger                         | Action                                     |
+| --------------------------------- | ---------------------- | ------------------------------- | ------------------------------------------ |
+| **🔄 Model Retraining**     | Every semester start   | New semester (Aug / Jan)        | `python src/retrain.py`                  |
+| **📊 Data Refresh**         | After every 10+ events | New attendance logged           | `python src/retrain.py --from-db`        |
+| **🔍 Performance Audit**    | Monthly                | Accuracy drops below threshold  | Review features + threshold sweep          |
+| **🧹 Data Cleanup**         | End of each semester   | Semester ends                   | Archive old data, regenerate baseline      |
+| **🚀 Feature Updates**      | As needed              | New data sources (LMS, weather) | Update `feature_engineering.py`, retrain |
+| **🛡️ Dependency Updates** | Quarterly              | Security patches / new releases | Update `requirements.txt`, test pipeline |
 
 **Retraining safeguard:** The retrain pipeline only deploys a new model if it beats the current one by **≥ 1 % F1 score**, preventing unnecessary swaps from random variance.
 
