@@ -24,17 +24,33 @@
 
 ## ❓ The Problem
 
-University workshop organizers face a common frustration:
+At **Vijaybhoomi University**, we run **FutureWorkshop** events regularly — bringing in industry professionals, alumni, and domain experts as guest speakers to share real-world knowledge with students across all four schools.
 
-> *"50 students registered… but only 12 showed up."*
+The problem is painfully simple:
 
-Without knowing expected turnout, organizers over-book venues, waste catering budgets, and can't plan logistics effectively. At **Vijaybhoomi University**, with four distinct schools running cross-disciplinary FutureWorkshop events, this prediction challenge is even more critical. **This system solves that.**
+> *"We invited a guest speaker who flew in from Bangalore. 80 students registered. 15 showed up. The auditorium was embarrassingly empty."*
+
+When a guest takes time out of their schedule to come speak at our campus, they deserve to see a room full of engaged students — not rows of empty chairs. And when students *do* show up, they deserve a well-organized event, not a chaotic scramble because we overbooked.
+
+**We can't over-book our auditorium** (fire safety, seating limits), but we also can't afford to under-prepare. Without a reliable prediction of actual turnout, organizers are stuck guessing — and that leads to:
+
+- **Wasted resources** — catering, printed materials, AV setup for a crowd that never comes
+- **Embarrassed guests** — speakers who prepared for 100 people but present to 20
+- **Missed learning** — if we knew turnout would be low, we could have promoted harder or rescheduled
+- **Over-booking risk** — accepting 200 registrations for a 120-seat auditorium because "only half will come" is a gamble
+
+With four distinct schools (Technology, Design, Business, Music) running cross-disciplinary workshops on 16 different topics, the attendance pattern isn't random — it's *predictable*. A Data Science talk will pack the room with Tech students but barely draw from Music. An industry speaker on a weekday afternoon during exams? Expect a ghost town.
+
+**This system turns that guesswork into a data-driven prediction.**
 
 ---
 
 ## 💡 The Solution
 
-A machine learning pipeline that analyzes **historical attendance patterns** across topics, speakers, timing, student behavior, and **school-topic affinity** — then predicts how many students will actually show up for a new event.
+A machine learning pipeline that learns from **historical attendance patterns** — which topics draw which schools, how speaker type affects turnout, whether exam season kills attendance — and predicts how many students will *actually* walk through the auditorium doors for a new event.
+
+**For organizers:** Know in advance if you'll get 30 or 130 — plan seating, catering, and promotion accordingly.  
+**For guest speakers:** Walk into a room that's full, not half-empty. Their time and expertise deserve that respect.
 
 ### Vijaybhoomi University — 4 Schools
 
