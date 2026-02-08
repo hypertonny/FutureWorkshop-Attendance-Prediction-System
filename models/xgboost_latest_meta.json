@@ -1,14 +1,14 @@
 {
   "model_name": "xgboost",
-  "timestamp": "20260209_023735",
+  "timestamp": "20260209_024405",
   "feature_columns": [
     "semester",
     "cgpa",
+    "past_attendance_rate",
+    "past_events_count",
     "duration_minutes",
     "exam_proximity",
     "num_registrations",
-    "past_attendance_rate",
-    "past_events_count",
     "month",
     "is_weekend",
     "semester_week",
@@ -73,11 +73,11 @@
     "day_of_week_Wednesday"
   ],
   "metrics": {
-    "accuracy": 0.6559006211180124,
-    "f1_score": 0.7328833172613307,
-    "auc_roc": 0.7780103709810133,
-    "threshold": 0.2
+    "accuracy": 0.6708074534161491,
+    "f1_score": 0.7357926221335992,
+    "auc_roc": 0.7780782964297458,
+    "threshold": 0.24000000000000002
   },
-  "threshold": 0.2,
-  "model_path": "C:\\BNH\\vijaybhoomi\\hackathon-3\\models\\xgboost_20260209_023735.pkl"
+  "threshold": 0.24000000000000002,
+  "model_path": "C:\\BNH\\vijaybhoomi\\hackathon-3\\models\\xgboost_20260209_024405.pkl"
 }

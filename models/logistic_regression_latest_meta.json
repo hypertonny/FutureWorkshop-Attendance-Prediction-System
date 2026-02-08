@@ -1,14 +1,14 @@
 {
   "model_name": "logistic_regression",
-  "timestamp": "20260209_023735",
+  "timestamp": "20260209_024406",
   "feature_columns": [
     "semester",
     "cgpa",
+    "past_attendance_rate",
+    "past_events_count",
     "duration_minutes",
     "exam_proximity",
     "num_registrations",
-    "past_attendance_rate",
-    "past_events_count",
     "month",
     "is_weekend",
     "semester_week",
@@ -79,5 +79,5 @@
     "threshold": 0.28
   },
   "threshold": 0.28,
-  "model_path": "C:\\BNH\\vijaybhoomi\\hackathon-3\\models\\logistic_regression_20260209_023735.pkl"
+  "model_path": "C:\\BNH\\vijaybhoomi\\hackathon-3\\models\\logistic_regression_20260209_024406.pkl"
 }

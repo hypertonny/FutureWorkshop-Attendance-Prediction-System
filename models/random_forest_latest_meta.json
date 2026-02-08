@@ -1,14 +1,14 @@
 {
   "model_name": "random_forest",
-  "timestamp": "20260209_023735",
+  "timestamp": "20260209_024405",
   "feature_columns": [
     "semester",
     "cgpa",
+    "past_attendance_rate",
+    "past_events_count",
     "duration_minutes",
     "exam_proximity",
     "num_registrations",
-    "past_attendance_rate",
-    "past_events_count",
     "month",
     "is_weekend",
     "semester_week",
@@ -73,11 +73,11 @@
     "day_of_week_Wednesday"
   ],
   "metrics": {
-    "accuracy": 0.6826086956521739,
-    "f1_score": 0.7359173126614987,
-    "auc_roc": 0.7852907440769781,
-    "threshold": 0.3600000000000001
+    "accuracy": 0.7006211180124223,
+    "f1_score": 0.7366120218579235,
+    "auc_roc": 0.7846855900791794,
+    "threshold": 0.4
   },
-  "threshold": 0.3600000000000001,
-  "model_path": "C:\\BNH\\vijaybhoomi\\hackathon-3\\models\\random_forest_20260209_023735.pkl"
+  "threshold": 0.4,
+  "model_path": "C:\\BNH\\vijaybhoomi\\hackathon-3\\models\\random_forest_20260209_024405.pkl"
 }

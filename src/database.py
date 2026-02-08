@@ -42,6 +42,7 @@ class Student(Base):
     department = Column(String, nullable=False)
     semester = Column(Integer, nullable=False)
     club_activity_level = Column(String)  # High, Medium, Low
+    cgpa = Column(Float, nullable=True)   # CGPA (3.0 - 10.0)
     
     def __repr__(self):
         return f"<Student {self.student_id} - {self.department}>"
@@ -113,7 +114,10 @@ def load_csv_to_db(csv_path):
     
     try:
         # --- Load unique students ---
-        students_df = df[['student_id', 'department', 'semester', 'club_activity_level']].drop_duplicates('student_id')
+        student_cols = ['student_id', 'department', 'semester', 'club_activity_level']
+        if 'cgpa' in df.columns:
+            student_cols.append('cgpa')
+        students_df = df[student_cols].drop_duplicates('student_id')
         for _, row in students_df.iterrows():
             exists = session.query(Student).filter_by(student_id=row['student_id']).first()
             if not exists:
@@ -121,7 +125,8 @@ def load_csv_to_db(csv_path):
                     student_id=row['student_id'],
                     department=row['department'],
                     semester=int(row['semester']),
-                    club_activity_level=row['club_activity_level']
+                    club_activity_level=row['club_activity_level'],
+                    cgpa=float(row['cgpa']) if 'cgpa' in row.index and pd.notna(row.get('cgpa')) else None
                 ))
         
         # --- Load unique events ---
@@ -182,7 +187,7 @@ def get_all_data_as_dataframe():
     query = """
         SELECT 
             r.student_id, r.event_id, s.department, s.semester, 
-            s.club_activity_level, r.registration_timing, r.attended,
+            s.club_activity_level, s.cgpa, r.registration_timing, r.attended,
             r.past_attendance_rate, r.past_events_count,
             e.event_date, e.topic, e.speaker_type, e.day_of_week,
             e.time_slot, e.duration_minutes, e.mode, e.exam_proximity,

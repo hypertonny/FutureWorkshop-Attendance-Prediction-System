@@ -50,15 +50,11 @@ def main():
     print("\n[Step 2/3] Loading data into database...")
     load_csv_to_db(csv_path)
     
-    # verify data loaded correctly
+    # Step 3: Train models from database
+    print("\n[Step 3/3] Training models (from database)...")
     df = get_all_data_as_dataframe()
-    print(f"  Database has {len(df)} records")
-    
-    # Step 3: Train models
-    print("\n[Step 3/3] Training models...")
-    import pandas as pd
-    df_csv = pd.read_csv(csv_path)  # use CSV for training (cleaner)
-    best_model, best_metrics, feature_cols = train_all_models(df_csv)
+    print(f"  Database has {len(df)} records, {len(df.columns)} columns")
+    best_model, best_metrics, feature_cols = train_all_models(df)
     
     # done
     print("\n" + "=" * 60)
