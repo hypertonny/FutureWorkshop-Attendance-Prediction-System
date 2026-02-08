@@ -146,16 +146,20 @@ def load_csv_to_db(csv_path):
                     num_registrations=int(row['num_registrations'])
                 ))
         
-        # --- Load registrations ---
-        for _, row in df.iterrows():
-            session.add(Registration(
-                student_id=row['student_id'],
-                event_id=row['event_id'],
-                registration_timing=row['registration_timing'],
-                attended=int(row['attended']),
-                past_attendance_rate=float(row['past_attendance_rate']),
-                past_events_count=int(row['past_events_count'])
-            ))
+        # --- Load registrations (skip if already loaded) ---
+        existing_count = session.query(Registration).count()
+        if existing_count == 0:
+            for _, row in df.iterrows():
+                session.add(Registration(
+                    student_id=row['student_id'],
+                    event_id=row['event_id'],
+                    registration_timing=row['registration_timing'],
+                    attended=int(row['attended']),
+                    past_attendance_rate=float(row['past_attendance_rate']),
+                    past_events_count=int(row['past_events_count'])
+                ))
+        else:
+            print(f"[DB] Registrations already loaded ({existing_count} rows), skipping.")
         
         session.commit()
         print(f"[DB] Loaded {len(students_df)} students, {len(events_df)} events, {len(df)} registrations.")

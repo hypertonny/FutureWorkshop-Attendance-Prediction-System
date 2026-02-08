@@ -27,14 +27,14 @@ import os
 import sys
 import json
 import argparse
-import joblib
 import pandas as pd
 from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.feature_engineering import run_feature_pipeline
-from src.train_model import prepare_data, train_xgboost, train_random_forest, save_model, get_feature_importance
+from src.train_model import (prepare_data, train_xgboost, train_random_forest, 
+                             train_logistic_regression, save_model, get_feature_importance)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
@@ -45,18 +45,24 @@ MIN_IMPROVEMENT = 0.01
 
 def get_current_model_metrics():
     """Load metrics of the currently deployed (best F1) model"""
-    best_meta = None
-    best_f1 = -1
-    for model_name in ["xgboost", "random_forest"]:
-        meta_path = os.path.join(MODELS_DIR, f"{model_name}_latest_meta.json")
+    # check comparison file first for the winner
+    comp_path = os.path.join(MODELS_DIR, "model_comparison.json")
+    if os.path.exists(comp_path):
+        with open(comp_path, 'r') as f:
+            comp = json.load(f)
+        winner = comp.get('winner', 'xgboost')
+        meta_path = os.path.join(MODELS_DIR, f"{winner}_latest_meta.json")
         if os.path.exists(meta_path):
             with open(meta_path, 'r') as f:
-                meta = json.load(f)
-            f1 = meta.get('metrics', {}).get('f1_score', 0)
-            if f1 > best_f1:
-                best_f1 = f1
-                best_meta = meta
-    return best_meta
+                return json.load(f)
+    
+    # fallback: check each model
+    for name in ['xgboost', 'random_forest', 'logistic_regression']:
+        meta_path = os.path.join(MODELS_DIR, f"{name}_latest_meta.json")
+        if os.path.exists(meta_path):
+            with open(meta_path, 'r') as f:
+                return json.load(f)
+    return None
 
 
 def load_data(from_db=False):
@@ -102,25 +108,28 @@ def retrain(from_db=False, force=False):
         print("\n[Retrain] No existing model found. Will train fresh.")
         force = True  # no model exists, must deploy
     
-    # load data and train
+    # load data and train all 3 models
     df = load_data(from_db)
     X_train, X_test, y_train, y_test, feature_cols = prepare_data(df)
     
-    # train XGBoost (primary model)
-    new_model, new_metrics = train_xgboost(X_train, y_train, X_test, y_test)
+    # train all 3 models
+    results = {}
     
-    # also train RF for comparison
+    xgb_model, xgb_metrics = train_xgboost(X_train, y_train, X_test, y_test)
+    results['xgboost'] = {'model': xgb_model, 'metrics': xgb_metrics}
+    
     rf_model, rf_metrics = train_random_forest(X_train, y_train, X_test, y_test)
+    results['random_forest'] = {'model': rf_model, 'metrics': rf_metrics}
     
-    # pick the better new model
-    if rf_metrics['f1_score'] > new_metrics['f1_score']:
-        new_model = rf_model
-        new_metrics = rf_metrics
-        new_name = "random_forest"
-        print("\n[Retrain] Random Forest performed better in this run")
-    else:
-        new_name = "xgboost"
-        print("\n[Retrain] XGBoost performed better in this run")
+    lr_model, lr_metrics = train_logistic_regression(X_train, y_train, X_test, y_test)
+    results['logistic_regression'] = {'model': lr_model, 'metrics': lr_metrics}
+    
+    # pick the best new model by F1
+    new_name = max(results, key=lambda k: results[k]['metrics']['f1_score'])
+    new_model = results[new_name]['model']
+    new_metrics = results[new_name]['metrics']
+    
+    print(f"\n[Retrain] Best new model: {new_name} (F1={new_metrics['f1_score']:.4f})")
     
     # decision: deploy or not?
     print(f"\n{'='*60}")
@@ -151,12 +160,23 @@ def retrain(from_db=False, force=False):
             print(f"\n  >> KEEPING old model (improvement < {MIN_IMPROVEMENT})")
     
     if should_deploy:
-        model_path = save_model(new_model, feature_cols, new_metrics, new_name)
+        # save all 3 models
+        for name, res in results.items():
+            save_model(res['model'], feature_cols, res['metrics'], name)
         
-        # save feature importance
+        # save feature importance from winner
         feat_imp = get_feature_importance(new_model, feature_cols, new_name)
         if feat_imp is not None:
             feat_imp.to_csv(os.path.join(MODELS_DIR, "feature_importance.csv"), index=False)
+        
+        # save comparison results
+        comparison = {}
+        for name, res in results.items():
+            comparison[name] = res['metrics']
+        comparison['winner'] = new_name
+        comp_path = os.path.join(MODELS_DIR, "model_comparison.json")
+        with open(comp_path, 'w') as f:
+            json.dump(comparison, f, indent=2)
         
         # log to database
         try:
@@ -167,7 +187,7 @@ def retrain(from_db=False, force=False):
                 f1=new_metrics['f1_score'],
                 auc=new_metrics['auc_roc'],
                 acc=new_metrics['accuracy'],
-                model_path=model_path
+                model_path=os.path.join(MODELS_DIR, f"{new_name}_latest.pkl")
             )
         except Exception as e:
             print(f"[Warning] DB logging failed: {e}")

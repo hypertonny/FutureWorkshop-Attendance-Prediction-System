@@ -48,9 +48,8 @@ def add_student_history_features(df):
     """
     Build student-level history features.
     
-    The problem with the original past_attendance_rate is that it's 
-    pre-calculated and doesn't actually correlate well with attendance.
-    Here I compute it properly from the actual data, sorted by time.
+    Includes rolling attendance, streaks, consistency (std dev),
+    and attendance recency for richer behavioral signals.
     """
     df = df.copy()
     df = df.sort_values(['student_id', 'event_date'])
@@ -78,7 +77,6 @@ def add_student_history_features(df):
     )
     
     # attendance streak: consecutive 1s or 0s
-    # positive = attending streak, negative = missing streak
     def compute_streak(series):
         streaks = []
         current_streak = 0
@@ -98,6 +96,27 @@ def add_student_history_features(df):
         df.groupby('student_id')['attended']
         .transform(lambda x: pd.Series(compute_streak(x.values), index=x.index))
     )
+    
+    # --- NEW v2 features ---
+    
+    # rolling std (consistency): low std = predictable student
+    df['student_attendance_std'] = (
+        df.groupby('student_id')['attended']
+        .transform(lambda x: x.expanding().std().shift(1))
+    )
+    df['student_attendance_std'] = df['student_attendance_std'].fillna(0.5)
+    
+    # short-window rolling mean (last 3 events) for recency
+    df['student_recent_3_rate'] = (
+        df.groupby('student_id')['attended']
+        .transform(lambda x: x.rolling(3, min_periods=1).mean().shift(1))
+    )
+    df['student_recent_3_rate'] = df['student_recent_3_rate'].fillna(overall_avg)
+    
+    # CGPA bands: high (>=8), mid (6-8), low (<6)
+    if 'cgpa' in df.columns:
+        df['cgpa_band_high'] = (df['cgpa'] >= 8.0).astype(int)
+        df['cgpa_band_low'] = (df['cgpa'] < 6.0).astype(int)
     
     return df
 
@@ -142,10 +161,7 @@ def add_event_popularity_features(df):
 def add_interaction_features(df):
     """
     Create interaction features that capture combined effects.
-    
-    Example: a student in CSE department might attend AI workshops
-    more than a CIVIL student. Or evening + weekend might have 
-    different patterns than evening + weekday.
+    v2: added stronger cross-feature interactions and non-linear combos.
     """
     df = df.copy()
     
@@ -165,6 +181,53 @@ def add_interaction_features(df):
     df['club_activity_numeric'] = df['club_activity_level'].map(activity_map)
     df['student_engagement_score'] = (
         df['student_rolling_attendance'] * df['club_activity_numeric']
+    )
+    
+    # --- NEW v2 interaction features ---
+    
+    # dept-topic match: 1 if tech dept + tech topic, else 0
+    tech_depts = ['CSE', 'IT', 'ECE']
+    tech_topics = ['Data Science', 'Machine Learning', 'AI & Deep Learning',
+                   'Web Development', 'Cybersecurity', 'Cloud Computing']
+    df['dept_topic_match'] = (
+        df['department'].isin(tech_depts) & df['topic'].isin(tech_topics)
+    ).astype(int)
+    
+    # student quality score: combines CGPA, club, and history
+    if 'cgpa' in df.columns:
+        df['student_quality_score'] = (
+            df['cgpa'] / 10.0 * 0.3 +
+            df['club_activity_numeric'] / 3.0 * 0.3 +
+            df['student_rolling_attendance'] * 0.4
+        )
+    
+    # event attractiveness: combines speaker, topic, promo
+    df['event_attractiveness'] = (
+        df['speaker_pull'] * 0.35 +
+        df['topic_popularity'] * 0.35 +
+        df['timeslot_popularity'] * 0.15 +
+        df['day_popularity'] * 0.15
+    )
+    
+    # combined score: student quality * event attractiveness
+    if 'student_quality_score' in df.columns:
+        df['combined_quality_attract'] = (
+            df['student_quality_score'] * df['event_attractiveness']
+        )
+    
+    # exam pressure: club_low + exam_near = very unlikely
+    df['exam_pressure'] = df['exam_is_near'] * (3 - df['club_activity_numeric'])
+    
+    # momentum + event quality: recent attender at good event
+    df['recent_att_x_event'] = (
+        df['student_recent_3_rate'] * df['event_attractiveness']
+    )
+    
+    # registration commitment: early + high_regs = strong signal
+    timing_map_num = {'Early': 3, 'Medium': 2, 'Late': 1}
+    df['reg_timing_numeric'] = df['registration_timing'].map(timing_map_num)
+    df['registration_commitment'] = (
+        df['reg_timing_numeric'] * df['registration_density']
     )
     
     return df

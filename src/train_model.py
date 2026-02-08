@@ -1,25 +1,25 @@
 """
 train_model.py - Train and evaluate ML models
-==============================================
-Models used:
-1. XGBoost (primary)   - Gradient boosting, handles imbalance natively
-2. Random Forest       - Ensemble baseline for comparison
+=============================================
+Models trained:
+  1. XGBoost (Extreme Gradient Boosting) - boosting-based
+  2. Random Forest - bagging-based
+  3. Logistic Regression - linear baseline
 
-Why not KNN?
-  KNN is slow at prediction time (has to scan all training data), 
-  doesn't work well with mixed feature types, and doesn't scale.
-  XGBoost is much better for tabular data like ours.
+Why these three?
+  - XGBoost: Captures complex non-linear interactions, built-in regularization,
+    handles class imbalance natively (scale_pos_weight). Proven best for tabular data.
+  - Random Forest: Strong bagging ensemble. Good generalization, less prone to
+    overfitting. Serves as comparison to boosting approach.
+  - Logistic Regression: Simple linear baseline. If LR does well, the problem
+    is simple. If XGBoost beats LR significantly, it proves complex patterns exist.
 
-Why XGBoost over plain Logistic Regression?
-  Our dataset has non-linear patterns (e.g., topic + time + student history
-  interact in complex ways). Logistic Regression assumes linear boundaries
-  which misses these interactions. XGBoost builds decision trees that 
-  naturally capture non-linear patterns.
-  
 Evaluation:
-  Using F1, AUC-ROC, and Accuracy. We can't rely on just accuracy because
-  the dataset is imbalanced (82% didn't attend). A dumb model that always
-  predicts 0 gets 82% accuracy but is useless.
+  Using F1, AUC-ROC, Precision, Recall, and Accuracy. F1 is the primary metric
+  because accuracy is misleading on imbalanced data. A dumb model that always
+  predicts the majority class gets high accuracy but is useless.
+
+The best model (by F1 score) is selected and saved.
 """
 
 import os
@@ -33,8 +33,11 @@ from sklearn.metrics import (
     accuracy_score, f1_score, roc_auc_score, 
     classification_report, confusion_matrix
 )
-from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 
 import sys
@@ -147,17 +150,15 @@ def train_xgboost(X_train, y_train, X_test, y_test):
     Train XGBoost classifier.
     
     Key parameter: scale_pos_weight
-    Since only 18% of students attend, the classes are imbalanced (82:18).
-    scale_pos_weight tells XGBoost to pay more attention to the minority class.
-    The ratio is: (number of 0s) / (number of 1s) ≈ 4.5
+    Adjusts for class imbalance by weighting the minority class.
+    The ratio is: (count of negatives) / (count of positives)
     
     Other important params:
-    - n_estimators: number of trees (100 is a good starting point)
-    - max_depth: how deep each tree can grow (4 prevents overfitting on 5.8K rows)
-    - learning_rate: step size (0.1 is standard, smaller = more trees needed)
-    - reg_alpha/reg_lambda: L1/L2 regularization to prevent overfitting
+    - n_estimators: number of trees (300 is solid for 5000+ rows)
+    - max_depth: how deep each tree grows (6 balances accuracy vs overfitting)
+    - learning_rate: step size (0.05 is a good sweet spot)
+    - subsample/colsample: randomness to reduce overfitting
     """
-    # calculate class weight ratio
     neg_count = (y_train == 0).sum()
     pos_count = (y_train == 1).sum()
     scale_weight = neg_count / pos_count
@@ -166,25 +167,24 @@ def train_xgboost(X_train, y_train, X_test, y_test):
     
     model = XGBClassifier(
         n_estimators=300,
-        max_depth=5,
+        max_depth=6,
         learning_rate=0.05,
         scale_pos_weight=scale_weight,
         min_child_weight=3,
         gamma=0.1,
-        reg_alpha=0.05,       # L1 regularization
-        reg_lambda=1.5,       # L2 regularization
-        subsample=0.85,       # use 85% of data per tree (reduces overfitting)
-        colsample_bytree=0.7,  # use 70% of features per tree
+        reg_alpha=0.05,
+        reg_lambda=1.5,
+        subsample=0.85,
+        colsample_bytree=0.7,
         random_state=RANDOM_STATE,
         eval_metric='logloss',
         verbosity=0
     )
     
     model.fit(X_train, y_train)
-    
     metrics = evaluate_model(model, X_test, y_test, "XGBoost")
     
-    # cross-validation to make sure we're not just lucky with the split
+    # cross-validation to verify we're not just lucky with the split
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
     cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='f1')
     print(f"\n[XGBoost] 5-Fold CV F1 scores: {cv_scores.round(4)}")
@@ -195,21 +195,72 @@ def train_xgboost(X_train, y_train, X_test, y_test):
 
 def train_random_forest(X_train, y_train, X_test, y_test):
     """
-    Train Random Forest as a baseline comparison.
-    Using class_weight='balanced' to handle imbalanced data.
+    Train Random Forest classifier.
+    
+    Random Forest builds many decision trees independently (bagging)
+    and averages their predictions. class_weight='balanced' adjusts 
+    for class imbalance by giving more weight to minority class samples.
+    
+    Key difference from XGBoost: trees are independent (no sequential learning).
+    This makes RF more robust to noise but typically less accurate on patterns.
     """
+    print(f"\n[Random Forest] Training with balanced class weights...")
+    
     model = RandomForestClassifier(
         n_estimators=300,
         max_depth=8,
-        min_samples_split=5,
-        min_samples_leaf=3,
-        class_weight='balanced',  # automatically adjusts for imbalance
+        min_samples_split=10,
+        min_samples_leaf=4,
+        max_features='sqrt',
+        class_weight='balanced',
         random_state=RANDOM_STATE,
-        n_jobs=-1  # use all CPU cores
+        n_jobs=-1
     )
     
     model.fit(X_train, y_train)
     metrics = evaluate_model(model, X_test, y_test, "Random Forest")
+    
+    # cross-validation
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='f1')
+    print(f"\n[Random Forest] 5-Fold CV F1 scores: {cv_scores.round(4)}")
+    print(f"[Random Forest] Mean CV F1: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
+    
+    return model, metrics
+
+
+def train_logistic_regression(X_train, y_train, X_test, y_test):
+    """
+    Train Logistic Regression as a linear baseline.
+    
+    Logistic Regression fits a linear boundary between classes.
+    If it performs well, the problem is simple. If tree-based models
+    beat it significantly, it proves non-linear patterns exist.
+    
+    Uses StandardScaler because LR is sensitive to feature scales.
+    class_weight='balanced' handles imbalance.
+    """
+    print(f"\n[Logistic Regression] Training with balanced class weights...")
+    
+    model = Pipeline([
+        ('scaler', StandardScaler()),
+        ('lr', LogisticRegression(
+            C=1.0,
+            max_iter=1000,
+            class_weight='balanced',
+            random_state=RANDOM_STATE,
+            solver='lbfgs'
+        ))
+    ])
+    
+    model.fit(X_train, y_train)
+    metrics = evaluate_model(model, X_test, y_test, "Logistic Regression")
+    
+    # cross-validation
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='f1')
+    print(f"\n[Logistic Regression] 5-Fold CV F1 scores: {cv_scores.round(4)}")
+    print(f"[Logistic Regression] Mean CV F1: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
     
     return model, metrics
 
@@ -269,8 +320,14 @@ def save_model(model, feature_cols, metrics, model_name):
 
 def train_all_models(df):
     """
-    Main training function - trains all models, compares them,
-    saves the best one as the active model.
+    Main training function - trains 3 models, compares, and picks the best.
+    
+    Models trained:
+      1. XGBoost (gradient boosting)
+      2. Random Forest (bagging)
+      3. Logistic Regression (linear baseline)
+    
+    Winner is selected by F1 Score (best balance of precision & recall).
     """
     print("=" * 60)
     print("  WORKSHOP ATTENDANCE PREDICTION - MODEL TRAINING")
@@ -279,37 +336,55 @@ def train_all_models(df):
     # prepare data
     X_train, X_test, y_train, y_test, feature_cols = prepare_data(df)
     
-    # train both models
+    # train all 3 models
+    results = {}
+    
     xgb_model, xgb_metrics = train_xgboost(X_train, y_train, X_test, y_test)
+    results['xgboost'] = {'model': xgb_model, 'metrics': xgb_metrics}
+    
     rf_model, rf_metrics = train_random_forest(X_train, y_train, X_test, y_test)
+    results['random_forest'] = {'model': rf_model, 'metrics': rf_metrics}
     
-    # compare and pick the best model
-    print("\n" + "=" * 60)
+    lr_model, lr_metrics = train_logistic_regression(X_train, y_train, X_test, y_test)
+    results['logistic_regression'] = {'model': lr_model, 'metrics': lr_metrics}
+    
+    # comparison table
+    print(f"\n{'='*60}")
     print("  MODEL COMPARISON")
-    print("=" * 60)
-    print(f"  {'Metric':<15} {'XGBoost':<12} {'Random Forest':<12}")
-    print(f"  {'-'*39}")
-    for metric in ['accuracy', 'f1_score', 'auc_roc']:
-        print(f"  {metric:<15} {xgb_metrics[metric]:<12.4f} {rf_metrics[metric]:<12.4f}")
+    print(f"{'='*60}")
+    print(f"  {'Model':<25} {'F1':>8} {'AUC':>8} {'Accuracy':>10}")
+    print(f"  {'-'*51}")
+    for name, res in results.items():
+        m = res['metrics']
+        print(f"  {name:<25} {m['f1_score']:>8.4f} {m['auc_roc']:>8.4f} {m['accuracy']:>10.4f}")
     
-    # pick winner based on F1 score (most important for imbalanced data)
-    if xgb_metrics['f1_score'] >= rf_metrics['f1_score']:
-        best_model, best_name, best_metrics = xgb_model, "xgboost", xgb_metrics
-        print(f"\n  >> Winner: XGBoost (better F1)")
-    else:
-        best_model, best_name, best_metrics = rf_model, "random_forest", rf_metrics
-        print(f"\n  >> Winner: Random Forest (better F1)")
+    # pick winner by F1
+    best_name = max(results, key=lambda k: results[k]['metrics']['f1_score'])
+    best_model = results[best_name]['model']
+    best_metrics = results[best_name]['metrics']
     
-    # save both models
-    xgb_path = save_model(xgb_model, feature_cols, xgb_metrics, "xgboost")
-    rf_path = save_model(rf_model, feature_cols, rf_metrics, "random_forest")
+    print(f"\n  >> WINNER: {best_name} (F1 = {best_metrics['f1_score']:.4f})")
+    
+    # save all 3 models
+    for name, res in results.items():
+        save_model(res['model'], feature_cols, res['metrics'], name)
     
     # save feature importance from the winning model
     feat_imp = get_feature_importance(best_model, feature_cols, best_name)
     if feat_imp is not None:
         feat_imp.to_csv(os.path.join(MODELS_DIR, "feature_importance.csv"), index=False)
     
-    # try logging to database
+    # save comparison results for dashboard
+    comparison = {}
+    for name, res in results.items():
+        comparison[name] = res['metrics']
+    comparison['winner'] = best_name
+    comp_path = os.path.join(MODELS_DIR, "model_comparison.json")
+    with open(comp_path, 'w') as f:
+        json.dump(comparison, f, indent=2)
+    print(f"\n[Save] Model comparison saved to: {comp_path}")
+    
+    # log winner to database
     try:
         from src.database import log_model_version
         log_model_version(

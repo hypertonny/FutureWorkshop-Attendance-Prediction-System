@@ -183,6 +183,93 @@ st.markdown("""
     /* Plotly chart containers */
     .stPlotlyChart { border-radius: 16px; overflow: hidden; }
     
+    /* ---- Fade-in / Lazy-load Animations ---- */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes slideInLeft {
+        from { opacity: 0; transform: translateX(-30px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .fade-in-section {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+    .fade-in-delay-1 { animation: fadeInUp 0.6s ease-out 0.1s forwards; opacity: 0; }
+    .fade-in-delay-2 { animation: fadeInUp 0.6s ease-out 0.2s forwards; opacity: 0; }
+    .fade-in-delay-3 { animation: fadeInUp 0.6s ease-out 0.35s forwards; opacity: 0; }
+    .fade-in-delay-4 { animation: fadeInUp 0.6s ease-out 0.5s forwards; opacity: 0; }
+    .fade-in-delay-5 { animation: fadeInUp 0.6s ease-out 0.65s forwards; opacity: 0; }
+    
+    /* Splash screen */
+    .splash-overlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: linear-gradient(135deg, #0E1117 0%, #1a1a2e 40%, #16213e 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        animation: splashFadeOut 0.5s ease-in 2.2s forwards;
+        pointer-events: auto;
+    }
+    .splash-overlay.hidden {
+        pointer-events: none;
+    }
+    @keyframes splashFadeOut {
+        to { opacity: 0; visibility: hidden; pointer-events: none; }
+    }
+    .splash-logo {
+        font-size: 4rem;
+        margin-bottom: 16px;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    .splash-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.8rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6C63FF, #00D2FF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 8px;
+    }
+    .splash-sub {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.95rem;
+        color: #8B8FA3;
+        margin-bottom: 32px;
+    }
+    .splash-bar-track {
+        width: 220px;
+        height: 4px;
+        background: rgba(108, 99, 255, 0.15);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .splash-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #6C63FF, #00D2FF);
+        border-radius: 4px;
+        animation: splashProgress 2s ease-in-out forwards;
+    }
+    @keyframes splashProgress {
+        0% { width: 0%; }
+        60% { width: 70%; }
+        100% { width: 100%; }
+    }
+    
     /* Custom gradient text */
     .gradient-text {
         background: linear-gradient(135deg, #6C63FF, #00D2FF);
@@ -248,19 +335,31 @@ def load_feature_importance():
 
 
 def load_model_info():
-    """Load metadata for the best model (highest F1)"""
-    best_meta = None
-    best_f1 = -1
-    for name in ["xgboost", "random_forest"]:
-        meta_path = os.path.join(MODELS_DIR, f"{name}_latest_meta.json")
-        if os.path.exists(meta_path):
-            with open(meta_path, 'r') as f:
-                meta = json.load(f)
-            f1 = meta.get('metrics', {}).get('f1_score', 0)
-            if f1 > best_f1:
-                best_f1 = f1
-                best_meta = meta
-    return best_meta
+    """Load metadata for the best model (highest F1) and comparison data"""
+    # try comparison file first
+    comp_path = os.path.join(MODELS_DIR, "model_comparison.json")
+    comparison = None
+    winner = 'xgboost'
+    if os.path.exists(comp_path):
+        with open(comp_path, 'r') as f:
+            comparison = json.load(f)
+        winner = comparison.get('winner', 'xgboost')
+    
+    # load the winner's metadata
+    meta_path = os.path.join(MODELS_DIR, f"{winner}_latest_meta.json")
+    if not os.path.exists(meta_path):
+        # fallback: check all models
+        for name in ['xgboost', 'random_forest', 'logistic_regression']:
+            meta_path = os.path.join(MODELS_DIR, f"{name}_latest_meta.json")
+            if os.path.exists(meta_path):
+                break
+    
+    if os.path.exists(meta_path):
+        with open(meta_path, 'r') as f:
+            info = json.load(f)
+        info['comparison'] = comparison
+        return info
+    return None
 
 
 # ---- Sidebar ----
@@ -289,6 +388,20 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
+# ---- Splash Screen (first load only) ----
+if 'splash_shown' not in st.session_state:
+    st.session_state.splash_shown = True
+    st.markdown("""
+    <div class="splash-overlay" id="splashScreen">
+        <div class="splash-logo">🎯</div>
+        <div class="splash-title">Workshop Predictor</div>
+        <div class="splash-sub">Loading ML-powered insights...</div>
+        <div class="splash-bar-track">
+            <div class="splash-bar-fill"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 # ---- Load Data ----
 df = load_data()
 df['event_date'] = pd.to_datetime(df['event_date'])
@@ -313,11 +426,14 @@ def clean_layout(fig, height=400):
 # PAGE: Overview
 # ========================================================
 if page == "🏠  Overview":
+    st.markdown('<div class="fade-in-section">', unsafe_allow_html=True)
     st.markdown('<h1 class="gradient-text">Workshop Attendance Prediction</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">ML-powered insights to help organizers plan better events</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("")
     
     # key metrics
+    st.markdown('<div class="fade-in-delay-1">', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric("Total Events", f"{df['event_id'].nunique()}")
@@ -327,10 +443,12 @@ if page == "🏠  Overview":
         st.metric("Registrations", f"{len(df):,}")
     with c4:
         st.metric("Avg Attendance", f"{df['attended'].mean():.1%}")
+    st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("")
     
     # charts
+    st.markdown('<div class="fade-in-delay-3">', unsafe_allow_html=True)
     col_left, col_right = st.columns(2)
     
     with col_left:
@@ -375,10 +493,12 @@ if page == "🏠  Overview":
         fig.update_xaxes(title='')
         clean_layout(fig, height=500)
         st.plotly_chart(fig, width='stretch')
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # model info card
     model_info = load_model_info()
     if model_info:
+        st.markdown('<div class="fade-in-delay-5">', unsafe_allow_html=True)
         st.markdown("---")
         st.markdown("### 🤖 Active Model")
         m1, m2, m3 = st.columns(3)
@@ -388,14 +508,17 @@ if page == "🏠  Overview":
             st.metric("F1 Score", f"{model_info['metrics']['f1_score']:.3f}")
         with m3:
             st.metric("AUC-ROC", f"{model_info['metrics']['auc_roc']:.3f}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ========================================================
 # PAGE: Predict Attendance  
 # ========================================================
 elif page == "🔮  Predict Attendance":
+    st.markdown('<div class="fade-in-section">', unsafe_allow_html=True)
     st.markdown('<h1 class="gradient-text">Predict Attendance</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">Configure your upcoming workshop to get an AI-powered turnout prediction</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("")
     
     with st.form("prediction_form"):
@@ -506,8 +629,10 @@ elif page == "🔮  Predict Attendance":
 # PAGE: Attendance Trends
 # ========================================================
 elif page == "📈  Attendance Trends":
+    st.markdown('<div class="fade-in-section">', unsafe_allow_html=True)
     st.markdown('<h1 class="gradient-text">Attendance Trends</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">Discover patterns and trends across time, exams, and speakers</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("")
     
     # monthly trend
@@ -610,8 +735,10 @@ elif page == "📈  Attendance Trends":
 # PAGE: Topic Analysis
 # ========================================================
 elif page == "🔍  Topic Analysis":
+    st.markdown('<div class="fade-in-section">', unsafe_allow_html=True)
     st.markdown('<h1 class="gradient-text">Topic & Event Analysis</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">Deep-dive into attendance patterns for any topic</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("")
     
     selected_topic = st.selectbox("🔎 Select Topic", 
@@ -707,19 +834,23 @@ elif page == "🔍  Topic Analysis":
 # PAGE: Model Performance
 # ========================================================
 elif page == "⚙️  Model Performance":
+    st.markdown('<div class="fade-in-section">', unsafe_allow_html=True)
     st.markdown('<h1 class="gradient-text">Model Performance</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">Details on the active ML model and its key metrics</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("")
     
     model_info = load_model_info()
     
     if model_info:
         metrics = model_info['metrics']
+        comparison = model_info.get('comparison')
         
         # model metrics row
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            st.metric("Model", model_info['model_name'].upper().replace('_', ' '))
+            winner_name = model_info['model_name'].upper().replace('_', ' ')
+            st.metric("Winner Model", winner_name)
         with c2:
             st.metric("Accuracy", f"{metrics['accuracy']:.3f}")
         with c3:
@@ -729,7 +860,59 @@ elif page == "⚙️  Model Performance":
         
         st.markdown("")
         
-        # radar chart for metrics
+        # === Model Comparison Table ===
+        if comparison:
+            st.markdown("### 📊 Model Comparison")
+            st.markdown("*All 3 models trained on the same data. Winner selected by F1 Score.*")
+            
+            comp_data = []
+            winner = comparison.get('winner', '')
+            for name in ['xgboost', 'random_forest', 'logistic_regression']:
+                if name in comparison and isinstance(comparison[name], dict):
+                    m = comparison[name]
+                    display_name = name.upper().replace('_', ' ')
+                    if name == winner:
+                        display_name += " ⭐"
+                    comp_data.append({
+                        'Model': display_name,
+                        'F1 Score': f"{m['f1_score']:.4f}",
+                        'AUC-ROC': f"{m['auc_roc']:.4f}",
+                        'Accuracy': f"{m['accuracy']:.4f}",
+                        'Threshold': f"{m.get('threshold', 0.5):.2f}",
+                    })
+            
+            if comp_data:
+                st.dataframe(
+                    pd.DataFrame(comp_data).set_index('Model'),
+                    use_container_width=True
+                )
+            
+            # grouped bar chart comparison
+            bar_data = []
+            for name in ['xgboost', 'random_forest', 'logistic_regression']:
+                if name in comparison and isinstance(comparison[name], dict):
+                    m = comparison[name]
+                    display_name = name.replace('_', ' ').title()
+                    bar_data.append({'Model': display_name, 'Metric': 'F1 Score', 'Value': m['f1_score']})
+                    bar_data.append({'Model': display_name, 'Metric': 'AUC-ROC', 'Value': m['auc_roc']})
+                    bar_data.append({'Model': display_name, 'Metric': 'Accuracy', 'Value': m['accuracy']})
+            
+            if bar_data:
+                bar_df = pd.DataFrame(bar_data)
+                fig = px.bar(
+                    bar_df, x='Metric', y='Value', color='Model', barmode='group',
+                    color_discrete_sequence=[COLORS['primary'], COLORS['secondary'], COLORS['accent']],
+                    text='Value'
+                )
+                fig.update_traces(texttemplate='%{text:.3f}', textposition='outside', textfont_size=11)
+                fig.update_yaxes(range=[0, 1])
+                fig.update_layout(title='Model Performance Comparison')
+                clean_layout(fig, height=400)
+                st.plotly_chart(fig, width='stretch')
+            
+            st.markdown("")
+        
+        # radar chart + threshold gauge
         col1, col2 = st.columns([1, 1])
         
         with col1:
@@ -813,41 +996,35 @@ elif page == "⚙️  Model Performance":
         st.markdown("---")
         st.markdown("### 💡 How the Model Works")
         
-        with st.expander("Click to learn about the algorithm", expanded=False):
-            if model_info['model_name'] == 'xgboost':
-                st.markdown(f"""
-                **Algorithm:** XGBoost (Extreme Gradient Boosting)
-                
-                XGBoost builds multiple decision trees sequentially — each new tree
-                corrects mistakes from the previous ones (*boosting*).
-                
-                **Why XGBoost?**
-                - `scale_pos_weight` handles class imbalance natively
-                - Captures complex feature interactions (topic × time × student history)
-                - Built-in L1/L2 regularization prevents overfitting on our {len(df):,} row dataset
-                - Provides feature importance rankings
-                """)
-            else:
-                st.markdown(f"""
-                **Algorithm:** Random Forest
-                
-                Random Forest builds many decision trees in parallel on random data subsets,
-                then takes a majority vote (*bagging*). This reduces overfitting.
-                
-                **Why Random Forest won this round?**
-                - `class_weight='balanced'` handles imbalanced data natively
-                - Less prone to overfitting on our {len(df):,} row dataset
-                - Robust to noisy features and outliers
-                - Provides feature importance rankings
-                """)
+        with st.expander("Click to learn about the models", expanded=False):
+            st.markdown(f"""
+            **3 Models Trained & Compared:**
+            
+            | Model | Type | Key Idea |
+            |-------|------|----------|
+            | **XGBoost** | Gradient Boosting | Builds trees sequentially — each tree corrects mistakes from previous ones |
+            | **Random Forest** | Bagging | Builds trees independently and averages them — robust but less precise |
+            | **Logistic Regression** | Linear Model | Fits a linear decision boundary — baseline to prove non-linear patterns exist |
+            
+            **Why XGBoost usually wins on our data:**
+            - `scale_pos_weight` handles class imbalance natively
+            - Captures complex feature interactions (topic × time × student history)
+            - Built-in L1/L2 regularization prevents overfitting on {len(df):,} rows
+            - Sequential error correction beats independent averaging
+            
+            **The winner is selected by F1 Score** (not accuracy), because accuracy
+            is misleading on imbalanced data.
+            """)
             
             st.markdown("""
             ---
-            **Key Metrics:**
+            **Evaluation Metrics:**
             | Metric | What it measures |
-            |--------|-----------------|
+            |--------|------------------|
             | **F1 Score** | Balance between precision & recall *(primary metric)* |
             | **AUC-ROC** | How well the model separates attendees from no-shows |
+            | **Precision** | Of those predicted to attend, how many actually did |
+            | **Recall** | Of those who attended, how many did we predict correctly |
             | **Accuracy** | Overall correctness *(misleading with imbalanced data)* |
             """)
         

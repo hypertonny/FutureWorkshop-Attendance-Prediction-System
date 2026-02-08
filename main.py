@@ -4,7 +4,7 @@ main.py - Entry point for the Workshop Attendance Prediction System
 Run this script to:
   1. Initialize the SQLite database
   2. Load CSV data into the database
-  3. Train ML models (XGBoost + Random Forest)
+  3. Train ML models (XGBoost, Random Forest, Logistic Regression)
   4. Save the best model
 
 After running this, you can:

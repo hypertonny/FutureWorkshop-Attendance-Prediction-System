@@ -30,27 +30,38 @@ def load_latest_model(model_name=None):
     If model_name is not specified, picks the one with the best F1 score.
     """
     if model_name is None:
-        # pick the best model by checking metadata files
-        best_f1 = -1
-        best_name = "random_forest"  # default fallback
-        for name in ["xgboost", "random_forest"]:
-            meta_path = os.path.join(MODELS_DIR, f"{name}_latest_meta.json")
-            if os.path.exists(meta_path):
-                with open(meta_path, 'r') as f:
-                    meta = json.load(f)
-                f1 = meta.get('metrics', {}).get('f1_score', 0)
-                if f1 > best_f1:
-                    best_f1 = f1
-                    best_name = name
-        model_name = best_name
+        # check comparison file first
+        comp_path = os.path.join(MODELS_DIR, "model_comparison.json")
+        if os.path.exists(comp_path):
+            with open(comp_path, 'r') as f:
+                comp = json.load(f)
+            model_name = comp.get('winner', 'xgboost')
+        else:
+            # fallback: pick the best model by checking metadata files
+            best_f1 = -1
+            best_name = "xgboost"  # default fallback
+            for name in ["xgboost", "random_forest", "logistic_regression"]:
+                meta_path = os.path.join(MODELS_DIR, f"{name}_latest_meta.json")
+                if os.path.exists(meta_path):
+                    with open(meta_path, 'r') as f:
+                        meta = json.load(f)
+                    f1 = meta.get('metrics', {}).get('f1_score', 0)
+                    if f1 > best_f1:
+                        best_f1 = f1
+                        best_name = name
+            model_name = best_name
     model_path = os.path.join(MODELS_DIR, f"{model_name}_latest.pkl")
     meta_path = os.path.join(MODELS_DIR, f"{model_name}_latest_meta.json")
     
     if not os.path.exists(model_path):
-        # try the other model
-        alt = "random_forest" if model_name == "xgboost" else "xgboost"
-        model_path = os.path.join(MODELS_DIR, f"{alt}_latest.pkl")
-        meta_path = os.path.join(MODELS_DIR, f"{alt}_latest_meta.json")
+        # try other models as fallback
+        for alt in ["xgboost", "random_forest", "logistic_regression"]:
+            alt_path = os.path.join(MODELS_DIR, f"{alt}_latest.pkl")
+            alt_meta = os.path.join(MODELS_DIR, f"{alt}_latest_meta.json")
+            if os.path.exists(alt_path):
+                model_path = alt_path
+                meta_path = alt_meta
+                break
     
     if not os.path.exists(model_path):
         raise FileNotFoundError("No trained model found. Run train_model.py first.")
@@ -175,7 +186,7 @@ def predict_batch(df):
     feature_cols = metadata.get('feature_columns', [])
     
     featured_df, _ = run_feature_pipeline(df)
-    X = featured_df[feature_cols]
+    X = featured_df[feature_cols].copy()
     
     # handle missing columns
     for col in feature_cols:
