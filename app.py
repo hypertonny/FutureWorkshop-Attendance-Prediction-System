@@ -13,8 +13,9 @@ import json
 import pandas as pd
 import numpy as np
 import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime
 
 # setup path
@@ -26,13 +27,210 @@ from src.feature_engineering import run_feature_pipeline
 
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
+# ---- Color Palette ----
+COLORS = {
+    'primary': '#6C63FF',
+    'secondary': '#00D2FF',
+    'accent': '#FF6584',
+    'success': '#00C9A7',
+    'warning': '#FFB800',
+    'danger': '#FF4757',
+    'bg_card': '#1E1E2E',
+    'bg_dark': '#0E1117',
+    'text': '#E8E8E8',
+    'text_dim': '#8B8FA3',
+    'gradient_1': '#6C63FF',
+    'gradient_2': '#00D2FF',
+    'gradient_3': '#00C9A7',
+    'gradient_4': '#FF6584',
+}
+
+PLOTLY_TEMPLATE = 'plotly_dark'
+CHART_COLORS = ['#6C63FF', '#00D2FF', '#00C9A7', '#FF6584', '#FFB800', 
+                '#A855F7', '#F472B6', '#38BDF8', '#34D399', '#FBBF24']
+
 
 # ---- Page Config ----
 st.set_page_config(
     page_title="Workshop Attendance Predictor",
-    page_icon="📊",
-    layout="wide"
+    page_icon="🎯",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+
+# ---- Custom CSS ----
+st.markdown("""
+<style>
+    /* Import fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    
+    /* Global */
+    .stApp { font-family: 'Plus Jakarta Sans', sans-serif; }
+    
+    /* Hide default header & footer */
+    #MainMenu { visibility: hidden; }
+    footer { visibility: hidden; }
+    header { visibility: hidden; }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        border-right: 1px solid rgba(108, 99, 255, 0.2);
+    }
+    [data-testid="stSidebar"] .stRadio label[data-baseweb="radio"] {
+        padding: 8px 12px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    [data-testid="stSidebar"] .stRadio label[data-baseweb="radio"]:hover {
+        background: rgba(108, 99, 255, 0.15);
+    }
+    
+    /* Metric cards */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1E1E2E 0%, #2D2B55 100%);
+        border: 1px solid rgba(108, 99, 255, 0.2);
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(108, 99, 255, 0.2);
+        border-color: rgba(108, 99, 255, 0.5);
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+        color: #8B8FA3 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+        background: linear-gradient(135deg, #6C63FF, #00D2FF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    /* Subheaders */
+    .stMarkdown h2, .stMarkdown h3 {
+        color: #E8E8E8 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Form styling */
+    [data-testid="stForm"] {
+        background: linear-gradient(135deg, #1E1E2E 0%, #252540 100%);
+        border: 1px solid rgba(108, 99, 255, 0.15);
+        border-radius: 16px;
+        padding: 30px;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, #6C63FF 0%, #5A52D5 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 12px 32px;
+        font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: 0.3px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(108, 99, 255, 0.3);
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #7B73FF 0%, #6C63FF 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+    }
+    
+    /* Selectbox / Slider */
+    .stSelectbox > div > div, .stSlider > div {
+        border-radius: 10px;
+    }
+    
+    /* Dividers */
+    hr { border-color: rgba(108, 99, 255, 0.15) !important; margin: 2rem 0 !important; }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        padding: 10px 20px;
+        background: rgba(108, 99, 255, 0.08);
+        border: 1px solid rgba(108, 99, 255, 0.15);
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #6C63FF 0%, #5A52D5 100%) !important;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: rgba(108, 99, 255, 0.08);
+        border-radius: 10px;
+    }
+    
+    /* Alert boxes */
+    .stAlert { border-radius: 12px; }
+    
+    /* Plotly chart containers */
+    .stPlotlyChart { border-radius: 16px; overflow: hidden; }
+    
+    /* Custom gradient text */
+    .gradient-text {
+        background: linear-gradient(135deg, #6C63FF, #00D2FF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+    }
+    .subtitle { color: #8B8FA3; font-size: 1.1rem; margin-top: -10px; }
+    
+    /* Stat card custom HTML */
+    .stat-card {
+        background: linear-gradient(135deg, #1E1E2E 0%, #2D2B55 100%);
+        border: 1px solid rgba(108, 99, 255, 0.2);
+        border-radius: 16px;
+        padding: 24px;
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-card .value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6C63FF, #00D2FF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .stat-card .label {
+        font-size: 0.85rem;
+        color: #8B8FA3;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 4px;
+    }
+    
+    /* Prediction result cards */
+    .result-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #1E1E2E 100%);
+        border-left: 4px solid;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 8px 0;
+    }
+    .result-card.purple { border-color: #6C63FF; }
+    .result-card.blue { border-color: #00D2FF; }
+    .result-card.green { border-color: #00C9A7; }
+    .result-card.pink { border-color: #FF6584; }
+</style>
+""", unsafe_allow_html=True)
 
 
 @st.cache_data
@@ -65,15 +263,30 @@ def load_model_info():
     return best_meta
 
 
-# ---- Sidebar Navigation ----
-st.sidebar.title("📊 Workshop Predictor")
-page = st.sidebar.radio("Navigate", [
-    "🏠 Overview",
-    "🔮 Predict Attendance",
-    "📈 Attendance Trends",
-    "🔍 Topic Analysis",
-    "⚙️ Model Performance"
-])
+# ---- Sidebar ----
+with st.sidebar:
+    st.markdown('<h1 style="text-align:center;">🎯</h1>', unsafe_allow_html=True)
+    st.markdown('<h3 style="text-align:center; margin-top:-10px;">Workshop Predictor</h3>', unsafe_allow_html=True)
+    st.markdown("")
+    
+    page = st.radio("Navigation", [
+        "🏠  Overview",
+        "🔮  Predict Attendance",
+        "📈  Attendance Trends",
+        "🔍  Topic Analysis",
+        "⚙️  Model Performance"
+    ], label_visibility="collapsed")
+    
+    st.markdown("---")
+    
+    # sidebar footer
+    st.markdown("""
+    <div style="text-align: center; padding: 10px;">
+        <p style="color: #8B8FA3; font-size: 0.8rem; margin: 4px 0;">Built by</p>
+        <p style="font-weight: 600; font-size: 0.95rem; margin: 4px 0;">Rahul Purohit</p>
+        <p style="color: #6C63FF; font-size: 0.8rem; margin: 4px 0;">CSE Department</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ---- Load Data ----
@@ -81,120 +294,151 @@ df = load_data()
 df['event_date'] = pd.to_datetime(df['event_date'])
 
 
+# ---- Helper: plotly layout defaults ----
+def clean_layout(fig, height=400):
+    fig.update_layout(
+        template=PLOTLY_TEMPLATE,
+        height=height,
+        margin=dict(l=20, r=20, t=50, b=20),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='Plus Jakarta Sans', color='#E8E8E8'),
+        xaxis=dict(gridcolor='rgba(108,99,255,0.08)'),
+        yaxis=dict(gridcolor='rgba(108,99,255,0.08)'),
+    )
+    return fig
+
+
 # ========================================================
 # PAGE: Overview
 # ========================================================
-if page == "🏠 Overview":
-    st.title("Workshop Attendance Prediction System")
-    st.markdown("*ML-powered predictions to help organizers plan better events*")
+if page == "🏠  Overview":
+    st.markdown('<h1 class="gradient-text">Workshop Attendance Prediction</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">ML-powered insights to help organizers plan better events</p>', unsafe_allow_html=True)
+    st.markdown("")
     
-    # key metrics at the top
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Events", df['event_id'].nunique())
-    with col2:
-        st.metric("Total Students", df['student_id'].nunique())
-    with col3:
-        st.metric("Total Registrations", len(df))
-    with col4:
-        st.metric("Avg Attendance Rate", f"{df['attended'].mean():.1%}")
+    # key metrics
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Total Events", f"{df['event_id'].nunique()}")
+    with c2:
+        st.metric("Total Students", f"{df['student_id'].nunique()}")
+    with c3:
+        st.metric("Registrations", f"{len(df):,}")
+    with c4:
+        st.metric("Avg Attendance", f"{df['attended'].mean():.1%}")
     
-    st.markdown("---")
+    st.markdown("")
     
-    # quick summary charts
+    # charts
     col_left, col_right = st.columns(2)
     
     with col_left:
-        st.subheader("Attendance by Topic")
-        topic_rates = df.groupby('topic')['attended'].agg(['mean', 'count']).sort_values('mean', ascending=True)
-        fig, ax = plt.subplots(figsize=(8, 6))
-        bars = ax.barh(topic_rates.index, topic_rates['mean'], color='#4C72B0')
-        ax.set_xlabel("Attendance Rate")
-        ax.set_title("Which topics attract more students?")
-        for bar, count in zip(bars, topic_rates['count']):
-            ax.text(bar.get_width() + 0.005, bar.get_y() + bar.get_height()/2, 
-                    f"n={count}", va='center', fontsize=8)
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        topic_rates = df.groupby('topic')['attended'].agg(['mean', 'count']).sort_values('mean', ascending=True).reset_index()
+        fig = go.Figure(go.Bar(
+            y=topic_rates['topic'],
+            x=topic_rates['mean'],
+            orientation='h',
+            marker=dict(
+                color=topic_rates['mean'],
+                colorscale=[[0, '#6C63FF'], [0.5, '#00D2FF'], [1, '#00C9A7']],
+                cornerradius=6,
+            ),
+            text=[f"  {v:.0%}  (n={c})" for v, c in zip(topic_rates['mean'], topic_rates['count'])],
+            textposition='outside',
+            textfont=dict(size=11),
+            hovertemplate='<b>%{y}</b><br>Rate: %{x:.1%}<br>Events: %{text}<extra></extra>',
+        ))
+        fig.update_layout(title=dict(text='📊 Attendance by Topic', font=dict(size=18)))
+        fig.update_xaxes(title='Attendance Rate', tickformat='.0%', range=[0, max(topic_rates['mean'])*1.3])
+        fig.update_yaxes(title='')
+        clean_layout(fig, height=500)
+        st.plotly_chart(fig, width='stretch')
     
     with col_right:
-        st.subheader("Attendance by Day of Week")
         day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        day_rates = df.groupby('day_of_week')['attended'].mean().reindex(day_order)
-        fig, ax = plt.subplots(figsize=(8, 6))
-        colors = ['#E74C3C' if d in ['Saturday', 'Sunday'] else '#4C72B0' for d in day_order]
-        ax.bar(day_rates.index, day_rates.values, color=colors)
-        ax.set_ylabel("Attendance Rate")
-        ax.set_title("Weekday vs Weekend attendance")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        day_rates = df.groupby('day_of_week')['attended'].mean().reindex(day_order).reset_index()
+        day_rates.columns = ['day', 'rate']
+        colors = [COLORS['danger'] if d in ['Saturday', 'Sunday'] else COLORS['primary'] for d in day_order]
+        
+        fig = go.Figure(go.Bar(
+            x=day_rates['day'],
+            y=day_rates['rate'],
+            marker=dict(color=colors, cornerradius=8),
+            text=[f"{v:.0%}" for v in day_rates['rate']],
+            textposition='outside',
+            textfont=dict(size=12, color='#E8E8E8'),
+            hovertemplate='<b>%{x}</b><br>Rate: %{y:.1%}<extra></extra>',
+        ))
+        fig.update_layout(title=dict(text='📅 Weekday vs Weekend', font=dict(size=18)))
+        fig.update_yaxes(title='Attendance Rate', tickformat='.0%')
+        fig.update_xaxes(title='')
+        clean_layout(fig, height=500)
+        st.plotly_chart(fig, width='stretch')
     
-    # model info
+    # model info card
     model_info = load_model_info()
     if model_info:
         st.markdown("---")
-        st.subheader("Active Model")
-        mc1, mc2, mc3 = st.columns(3)
-        with mc1:
-            st.metric("Model", model_info['model_name'].upper())
-        with mc2:
+        st.markdown("### 🤖 Active Model")
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric("Model", model_info['model_name'].upper().replace('_', ' '))
+        with m2:
             st.metric("F1 Score", f"{model_info['metrics']['f1_score']:.3f}")
-        with mc3:
+        with m3:
             st.metric("AUC-ROC", f"{model_info['metrics']['auc_roc']:.3f}")
 
 
 # ========================================================
-# PAGE: Predict Attendance
+# PAGE: Predict Attendance  
 # ========================================================
-elif page == "🔮 Predict Attendance":
-    st.title("Predict Workshop Attendance")
-    st.markdown("Enter details of your planned workshop to get a prediction.")
+elif page == "🔮  Predict Attendance":
+    st.markdown('<h1 class="gradient-text">Predict Attendance</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Configure your upcoming workshop to get an AI-powered turnout prediction</p>', unsafe_allow_html=True)
+    st.markdown("")
     
     with st.form("prediction_form"):
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2, gap="large")
         
         with col1:
+            st.markdown("##### 📋 Event Details")
             topic = st.selectbox("Workshop Topic", sorted(df['topic'].unique()))
             speaker_type = st.selectbox("Speaker Type", sorted(df['speaker_type'].unique()))
             day_of_week = st.selectbox("Day of Week", 
                 ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])
             time_slot = st.selectbox("Time Slot", sorted(df['time_slot'].unique()))
+            event_date = st.date_input("Event Date")
         
         with col2:
+            st.markdown("##### ⚙️ Configuration")
             mode = st.selectbox("Mode", ['Offline', 'Online'])
             duration = st.slider("Duration (minutes)", 30, 240, 90, step=30)
             num_registrations = st.slider("Expected Registrations", 10, 150, 50)
             exam_proximity = st.select_slider("Exam Proximity", 
                 options=[1, 2, 3], 
-                format_func=lambda x: {1: "Near Exams", 2: "Moderate", 3: "Far from Exams"}[x])
+                format_func=lambda x: {1: "🔴 Near Exams", 2: "🟡 Moderate", 3: "🟢 Far from Exams"}[x])
             promotion_level = st.selectbox("Promotion Level", ['Low', 'Medium', 'High'])
         
-        event_date = st.date_input("Event Date")
-        submitted = st.form_submit_button("🔮 Predict Attendance", use_container_width=True)
+        st.markdown("")
+        submitted = st.form_submit_button("🎯 Predict Attendance", use_container_width=True)
     
     if submitted:
         event_details = {
-            'topic': topic,
-            'speaker_type': speaker_type,
-            'day_of_week': day_of_week,
-            'time_slot': time_slot,
-            'duration_minutes': duration,
-            'mode': mode,
-            'exam_proximity': exam_proximity,
-            'promotion_level': promotion_level,
-            'num_registrations': num_registrations,
-            'event_date': str(event_date)
+            'topic': topic, 'speaker_type': speaker_type,
+            'day_of_week': day_of_week, 'time_slot': time_slot,
+            'duration_minutes': duration, 'mode': mode,
+            'exam_proximity': exam_proximity, 'promotion_level': promotion_level,
+            'num_registrations': num_registrations, 'event_date': str(event_date)
         }
         
-        with st.spinner("Running prediction..."):
+        with st.spinner("🔮 Running prediction model..."):
             try:
                 result = predict_single_event(event_details, df)
                 
                 st.markdown("---")
-                st.subheader("Prediction Results")
+                st.markdown("### 📊 Prediction Results")
+                st.markdown("")
                 
                 r1, r2, r3, r4 = st.columns(4)
                 with r1:
@@ -204,138 +448,186 @@ elif page == "🔮 Predict Attendance":
                 with r3:
                     st.metric("Predicted Rate", f"{result['attendance_rate']:.1%}")
                 with r4:
-                    conf_color = {'High': '🟢', 'Medium': '🟡', 'Low': '🔴'}
-                    st.metric("Confidence", f"{conf_color.get(result['confidence'], '')} {result['confidence']}")
+                    conf_map = {'High': '🟢 High', 'Medium': '🟡 Medium', 'Low': '🔴 Low'}
+                    st.metric("Confidence", conf_map.get(result['confidence'], result['confidence']))
+                
+                # visual gauge
+                fig = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=result['attendance_rate'] * 100,
+                    title={'text': "Predicted Attendance Rate", 'font': {'size': 16, 'color': '#E8E8E8'}},
+                    number={'suffix': '%', 'font': {'size': 40, 'color': '#E8E8E8'}},
+                    gauge={
+                        'axis': {'range': [0, 100], 'tickcolor': '#8B8FA3'},
+                        'bar': {'color': '#6C63FF'},
+                        'bgcolor': '#1E1E2E',
+                        'borderwidth': 0,
+                        'steps': [
+                            {'range': [0, 30], 'color': 'rgba(255,71,87,0.2)'},
+                            {'range': [30, 60], 'color': 'rgba(255,184,0,0.2)'},
+                            {'range': [60, 100], 'color': 'rgba(0,201,167,0.2)'},
+                        ],
+                        'threshold': {
+                            'line': {'color': '#00D2FF', 'width': 3},
+                            'thickness': 0.8,
+                            'value': result['attendance_rate'] * 100
+                        }
+                    }
+                ))
+                fig.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=280, margin=dict(l=30, r=30, t=40, b=10),
+                    font=dict(family='Plus Jakarta Sans')
+                )
+                st.plotly_chart(fig, width='stretch')
                 
                 # recommendation
-                st.markdown("---")
-                st.subheader("Recommendations")
                 attendees = result['predicted_attendees']
                 if attendees < 20:
-                    st.warning("⚠️ Low predicted turnout. Consider changing the topic, timing, or boosting promotion.")
+                    st.error("📉 **Low predicted turnout.** Consider changing the topic, timing, or boosting promotion.")
                 elif attendees < 40:
-                    st.info("ℹ️ Moderate turnout expected. A medium-sized room should work.")
+                    st.warning("📊 **Moderate turnout expected.** A medium-sized room should work.")
                 else:
-                    st.success("✅ Good turnout expected! Prepare a larger venue.")
+                    st.success("🚀 **Great turnout expected!** Prepare a larger venue and extra resources.")
                 
-                # historical comparison
                 topic_history = df[df['topic'] == topic]
                 if len(topic_history) > 0:
                     hist_rate = topic_history['attended'].mean()
-                    st.markdown(f"**Historical reference:** *{topic}* workshops usually have "
-                               f"**{hist_rate:.1%}** attendance rate across {topic_history['event_id'].nunique()} past events.")
+                    st.info(f"📚 **Historical reference:** *{topic}* workshops average "
+                            f"**{hist_rate:.1%}** attendance across {topic_history['event_id'].nunique()} past events.")
                 
             except Exception as e:
                 st.error(f"Prediction failed: {str(e)}")
-                st.info("Make sure you've trained the model first (run: python main.py)")
+                st.code("python main.py", language="bash")
 
 
 # ========================================================
 # PAGE: Attendance Trends
 # ========================================================
-elif page == "📈 Attendance Trends":
-    st.title("Attendance Trends Over Time")
+elif page == "📈  Attendance Trends":
+    st.markdown('<h1 class="gradient-text">Attendance Trends</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Discover patterns and trends across time, exams, and speakers</p>', unsafe_allow_html=True)
+    st.markdown("")
     
-    # monthly attendance trend
+    # monthly trend
     df_monthly = df.copy()
     df_monthly['month'] = df_monthly['event_date'].dt.to_period('M').astype(str)
-    monthly_stats = df_monthly.groupby('month').agg(
-        total_registrations=('attended', 'count'),
-        total_attended=('attended', 'sum'),
-        attendance_rate=('attended', 'mean')
+    monthly = df_monthly.groupby('month').agg(
+        registrations=('attended', 'count'),
+        attended=('attended', 'sum'),
+        rate=('attended', 'mean')
     ).reset_index()
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12,
+                        subplot_titles=("Monthly Registrations vs Attendance", "Attendance Rate"))
     
-    ax1.plot(monthly_stats['month'], monthly_stats['total_registrations'], 
-             marker='o', label='Registrations', color='#3498DB')
-    ax1.plot(monthly_stats['month'], monthly_stats['total_attended'], 
-             marker='s', label='Actually Attended', color='#2ECC71')
-    ax1.set_title("Monthly Registrations vs Actual Attendance")
-    ax1.legend()
-    ax1.set_ylabel("Count")
-    plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45)
+    fig.add_trace(go.Scatter(
+        x=monthly['month'], y=monthly['registrations'],
+        name='Registrations', mode='lines+markers',
+        line=dict(color=COLORS['primary'], width=3),
+        marker=dict(size=8),
+    ), row=1, col=1)
+    fig.add_trace(go.Scatter(
+        x=monthly['month'], y=monthly['attended'],
+        name='Attended', mode='lines+markers',
+        line=dict(color=COLORS['success'], width=3),
+        marker=dict(size=8),
+    ), row=1, col=1)
+    fig.add_trace(go.Bar(
+        x=monthly['month'], y=monthly['rate'],
+        name='Rate', marker=dict(color=COLORS['warning'], cornerradius=6, opacity=0.85),
+        text=[f"{v:.0%}" for v in monthly['rate']], textposition='outside',
+    ), row=2, col=1)
+    fig.add_hline(y=df['attended'].mean(), line_dash='dash', line_color=COLORS['danger'],
+                  annotation_text=f"Avg: {df['attended'].mean():.0%}", row=2, col=1)
     
-    ax2.bar(monthly_stats['month'], monthly_stats['attendance_rate'], color='#E67E22')
-    ax2.set_title("Monthly Attendance Rate")
-    ax2.set_ylabel("Rate")
-    ax2.axhline(y=df['attended'].mean(), color='red', linestyle='--', label='Overall Average')
-    ax2.legend()
-    plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45)
-    
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
+    fig.update_yaxes(title='Count', row=1, col=1)
+    fig.update_yaxes(title='Rate', tickformat='.0%', row=2, col=1)
+    fig.update_xaxes(tickangle=45)
+    clean_layout(fig, height=550)
+    st.plotly_chart(fig, width='stretch')
     
     st.markdown("---")
     
-    # attendance by various factors
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Impact of Exam Proximity")
-        exam_data = df.groupby('exam_proximity')['attended'].mean()
-        fig, ax = plt.subplots(figsize=(6, 4))
-        bars = ax.bar(['Near (1)', 'Moderate (2)', 'Far (3)'], exam_data.values, 
-                      color=['#E74C3C', '#F39C12', '#2ECC71'])
-        ax.set_ylabel("Attendance Rate")
-        ax.set_title("Students skip more when exams are near")
-        for bar in bars:
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
-                    f'{bar.get_height():.1%}', ha='center', fontsize=10)
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        st.markdown("### 📝 Impact of Exam Proximity")
+        exam_data = df.groupby('exam_proximity')['attended'].mean().reset_index()
+        exam_data['label'] = exam_data['exam_proximity'].map({1: '🔴 Near', 2: '🟡 Moderate', 3: '🟢 Far'})
+        fig = go.Figure(go.Bar(
+            x=exam_data['label'], y=exam_data['attended'],
+            marker=dict(color=[COLORS['danger'], COLORS['warning'], COLORS['success']], cornerradius=10),
+            text=[f"{v:.1%}" for v in exam_data['attended']], textposition='outside',
+            textfont=dict(size=14, color='#E8E8E8'),
+        ))
+        fig.update_layout(title='Students skip more near exams')
+        fig.update_yaxes(title='Attendance Rate', tickformat='.0%')
+        fig.update_xaxes(title='')
+        clean_layout(fig, height=350)
+        st.plotly_chart(fig, width='stretch')
     
     with col2:
-        st.subheader("Impact of Speaker Type")
-        speaker_data = df.groupby('speaker_type')['attended'].mean().sort_values(ascending=True)
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.barh(speaker_data.index, speaker_data.values, color='#9B59B6')
-        ax.set_xlabel("Attendance Rate")
-        ax.set_title("Industry speakers draw the most students")
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        st.markdown("### 🎤 Impact of Speaker Type")
+        speaker = df.groupby('speaker_type')['attended'].mean().sort_values().reset_index()
+        fig = go.Figure(go.Bar(
+            y=speaker['speaker_type'], x=speaker['attended'],
+            orientation='h',
+            marker=dict(
+                color=speaker['attended'],
+                colorscale=[[0, '#6C63FF'], [1, '#00D2FF']],
+                cornerradius=10,
+            ),
+            text=[f"  {v:.1%}" for v in speaker['attended']], textposition='outside',
+            textfont=dict(size=13),
+        ))
+        fig.update_layout(title='Industry speakers draw the most')
+        fig.update_xaxes(title='Attendance Rate', tickformat='.0%')
+        fig.update_yaxes(title='')
+        clean_layout(fig, height=350)
+        st.plotly_chart(fig, width='stretch')
     
-    # time slot analysis
-    st.subheader("Best Time Slots")
-    slot_day = df.groupby(['day_of_week', 'time_slot'])['attended'].mean().unstack(fill_value=0)
+    # heatmap
+    st.markdown("### 🗓️ Day × Time Slot Heatmap")
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    slot_day = df.groupby(['day_of_week', 'time_slot'])['attended'].mean().unstack(fill_value=0)
     slot_day = slot_day.reindex(day_order)
     
-    fig, ax = plt.subplots(figsize=(10, 5))
-    sns.heatmap(slot_day, annot=True, fmt='.2%', cmap='YlOrRd', ax=ax)
-    ax.set_title("Attendance Rate: Day vs Time Slot")
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
+    fig = go.Figure(go.Heatmap(
+        z=slot_day.values, x=slot_day.columns.tolist(), y=slot_day.index.tolist(),
+        colorscale=[[0, '#1E1E2E'], [0.5, '#6C63FF'], [1, '#00D2FF']],
+        text=[[f"{v:.0%}" for v in row] for row in slot_day.values],
+        texttemplate="%{text}", textfont=dict(size=12),
+        hovertemplate='<b>%{y} - %{x}</b><br>Rate: %{z:.1%}<extra></extra>',
+    ))
+    fig.update_layout(title='When do students show up the most?')
+    clean_layout(fig, height=350)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ========================================================
 # PAGE: Topic Analysis
 # ========================================================
-elif page == "🔍 Topic Analysis":
-    st.title("Topic & Event Analysis")
+elif page == "🔍  Topic Analysis":
+    st.markdown('<h1 class="gradient-text">Topic & Event Analysis</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Deep-dive into attendance patterns for any topic</p>', unsafe_allow_html=True)
+    st.markdown("")
     
-    # topic selector
-    selected_topic = st.selectbox("Select Topic to Analyze", 
+    selected_topic = st.selectbox("🔎 Select Topic", 
                                   ['All Topics'] + sorted(df['topic'].unique().tolist()))
     
-    if selected_topic != 'All Topics':
-        topic_df = df[df['topic'] == selected_topic]
-    else:
-        topic_df = df
+    topic_df = df if selected_topic == 'All Topics' else df[df['topic'] == selected_topic]
     
-    # stats
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
+    st.markdown("")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
         st.metric("Events", topic_df['event_id'].nunique())
-    with col2:
-        st.metric("Registrations", len(topic_df))
-    with col3:
-        st.metric("Attended", topic_df['attended'].sum())
-    with col4:
+    with c2:
+        st.metric("Registrations", f"{len(topic_df):,}")
+    with c3:
+        st.metric("Attended", f"{int(topic_df['attended'].sum()):,}")
+    with c4:
         st.metric("Rate", f"{topic_df['attended'].mean():.1%}")
     
     st.markdown("---")
@@ -343,149 +635,234 @@ elif page == "🔍 Topic Analysis":
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Attendance by Department")
-        dept_data = topic_df.groupby('department')['attended'].mean().sort_values(ascending=True)
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.barh(dept_data.index, dept_data.values, color='#1ABC9C')
-        ax.set_xlabel("Attendance Rate")
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        st.markdown("### 🏛️ By Department")
+        dept = topic_df.groupby('department')['attended'].mean().sort_values().reset_index()
+        fig = go.Figure(go.Bar(
+            y=dept['department'], x=dept['attended'], orientation='h',
+            marker=dict(
+                color=dept['attended'],
+                colorscale=[[0, '#6C63FF'], [1, '#00C9A7']],
+                cornerradius=8,
+            ),
+            text=[f"  {v:.1%}" for v in dept['attended']], textposition='outside',
+        ))
+        fig.update_xaxes(title='Attendance Rate', tickformat='.0%')
+        fig.update_yaxes(title='')
+        clean_layout(fig, height=300)
+        st.plotly_chart(fig, width='stretch')
     
     with col2:
-        st.subheader("Attendance by Semester")
-        sem_data = topic_df.groupby('semester')['attended'].mean()
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.bar(sem_data.index, sem_data.values, color='#3498DB')
-        ax.set_xlabel("Semester")
-        ax.set_ylabel("Attendance Rate")
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close()
+        st.markdown("### 🎓 By Semester")
+        sem = topic_df.groupby('semester')['attended'].mean().reset_index()
+        fig = go.Figure(go.Bar(
+            x=sem['semester'].astype(str), y=sem['attended'],
+            marker=dict(color=COLORS['secondary'], cornerradius=8),
+            text=[f"{v:.0%}" for v in sem['attended']], textposition='outside',
+        ))
+        fig.update_xaxes(title='Semester')
+        fig.update_yaxes(title='Attendance Rate', tickformat='.0%')
+        clean_layout(fig, height=300)
+        st.plotly_chart(fig, width='stretch')
     
-    # mode comparison
-    st.subheader("Online vs Offline Comparison")
-    mode_data = topic_df.groupby('mode').agg(
-        count=('attended', 'count'),
-        attended=('attended', 'sum'),
-        rate=('attended', 'mean')
-    ).reset_index()
+    # mode + club
+    col1, col2 = st.columns(2)
     
-    mc1, mc2 = st.columns(2)
-    for i, (_, row) in enumerate(mode_data.iterrows()):
-        with [mc1, mc2][i]:
-            st.metric(f"{row['mode']}", f"{row['rate']:.1%}", 
-                     f"{int(row['attended'])}/{int(row['count'])} attended")
+    with col1:
+        st.markdown("### 💻 Online vs Offline")
+        mode_data = topic_df.groupby('mode').agg(
+            count=('attended', 'count'), attended=('attended', 'sum'), rate=('attended', 'mean')
+        ).reset_index()
+        fig = go.Figure(go.Bar(
+            x=mode_data['mode'], y=mode_data['rate'],
+            marker=dict(color=[COLORS['primary'], COLORS['success']], cornerradius=10),
+            text=[f"{v:.1%}<br><span style='font-size:10px'>{a}/{c}</span>" 
+                  for v, a, c in zip(mode_data['rate'], mode_data['attended'], mode_data['count'])],
+            textposition='outside',
+        ))
+        fig.update_yaxes(title='Attendance Rate', tickformat='.0%')
+        fig.update_xaxes(title='')
+        clean_layout(fig, height=300)
+        st.plotly_chart(fig, width='stretch')
     
-    # club activity impact
-    st.markdown("---")
-    st.subheader("Does Club Activity Level Matter?")
-    club_data = topic_df.groupby('club_activity_level')['attended'].mean()
-    fig, ax = plt.subplots(figsize=(6, 3))
-    colors = {'Low': '#E74C3C', 'Medium': '#F39C12', 'High': '#2ECC71'}
-    for level in ['Low', 'Medium', 'High']:
-        if level in club_data:
-            ax.bar(level, club_data[level], color=colors[level])
-    ax.set_ylabel("Attendance Rate")
-    ax.set_title("Higher club activity = slightly higher attendance")
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
+    with col2:
+        st.markdown("### 🏃 Club Activity Impact")
+        club = topic_df.groupby('club_activity_level')['attended'].mean()
+        club_order = ['Low', 'Medium', 'High']
+        club_vals = [club.get(l, 0) for l in club_order]
+        club_colors = [COLORS['danger'], COLORS['warning'], COLORS['success']]
+        
+        fig = go.Figure(go.Bar(
+            x=club_order, y=club_vals,
+            marker=dict(color=club_colors, cornerradius=10),
+            text=[f"{v:.1%}" for v in club_vals], textposition='outside',
+            textfont=dict(size=14),
+        ))
+        fig.update_yaxes(title='Attendance Rate', tickformat='.0%')
+        fig.update_xaxes(title='Club Activity Level')
+        clean_layout(fig, height=300)
+        st.plotly_chart(fig, width='stretch')
 
 
 # ========================================================
 # PAGE: Model Performance
 # ========================================================
-elif page == "⚙️ Model Performance":
-    st.title("Model Performance & Details")
+elif page == "⚙️  Model Performance":
+    st.markdown('<h1 class="gradient-text">Model Performance</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Details on the active ML model and its key metrics</p>', unsafe_allow_html=True)
+    st.markdown("")
     
     model_info = load_model_info()
     
     if model_info:
-        st.subheader("Current Active Model")
+        metrics = model_info['metrics']
         
-        col1, col2, col3, col4 = st.columns(4)
+        # model metrics row
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("Model", model_info['model_name'].upper().replace('_', ' '))
+        with c2:
+            st.metric("Accuracy", f"{metrics['accuracy']:.3f}")
+        with c3:
+            st.metric("F1 Score", f"{metrics['f1_score']:.3f}")
+        with c4:
+            st.metric("AUC-ROC", f"{metrics['auc_roc']:.3f}")
+        
+        st.markdown("")
+        
+        # radar chart for metrics
+        col1, col2 = st.columns([1, 1])
+        
         with col1:
-            st.metric("Model", model_info['model_name'].upper())
+            categories = ['Accuracy', 'F1 Score', 'AUC-ROC']
+            values = [metrics['accuracy'], metrics['f1_score'], metrics['auc_roc']]
+            
+            fig = go.Figure(go.Scatterpolar(
+                r=values + [values[0]],
+                theta=categories + [categories[0]],
+                fill='toself',
+                fillcolor='rgba(108, 99, 255, 0.2)',
+                line=dict(color=COLORS['primary'], width=3),
+                marker=dict(size=8, color=COLORS['secondary']),
+            ))
+            fig.update_layout(
+                polar=dict(
+                    bgcolor='rgba(0,0,0,0)',
+                    radialaxis=dict(range=[0, 1], gridcolor='rgba(108,99,255,0.15)', tickfont=dict(size=10)),
+                    angularaxis=dict(gridcolor='rgba(108,99,255,0.15)', tickfont=dict(size=13)),
+                ),
+                title=dict(text='📐 Metric Overview', font=dict(size=18)),
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Plus Jakarta Sans', color='#E8E8E8'),
+                height=350, margin=dict(l=60, r=60, t=60, b=30),
+            )
+            st.plotly_chart(fig, width='stretch')
+        
         with col2:
-            st.metric("Accuracy", f"{model_info['metrics']['accuracy']:.3f}")
-        with col3:
-            st.metric("F1 Score", f"{model_info['metrics']['f1_score']:.3f}")
-        with col4:
-            st.metric("AUC-ROC", f"{model_info['metrics']['auc_roc']:.3f}")
+            # threshold info
+            threshold = metrics.get('threshold', 0.5)
+            fig = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=threshold,
+                title={'text': "Optimized Threshold", 'font': {'size': 16, 'color': '#E8E8E8'}},
+                number={'font': {'size': 36, 'color': '#E8E8E8'}},
+                gauge={
+                    'axis': {'range': [0, 1], 'tickcolor': '#8B8FA3'},
+                    'bar': {'color': COLORS['success']},
+                    'bgcolor': '#1E1E2E',
+                    'borderwidth': 0,
+                    'steps': [
+                        {'range': [0, 0.3], 'color': 'rgba(255,71,87,0.15)'},
+                        {'range': [0.3, 0.6], 'color': 'rgba(255,184,0,0.15)'},
+                        {'range': [0.6, 1], 'color': 'rgba(0,201,167,0.15)'},
+                    ],
+                }
+            ))
+            fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                height=350, margin=dict(l=30, r=30, t=60, b=10),
+                font=dict(family='Plus Jakarta Sans'),
+            )
+            st.plotly_chart(fig, width='stretch')
         
         st.markdown("---")
         
         # feature importance
         feat_imp = load_feature_importance()
         if feat_imp is not None:
-            st.subheader("Top 15 Most Important Features")
+            st.markdown("### 🏆 Top 15 Most Important Features")
             top_15 = feat_imp.head(15).sort_values('importance', ascending=True)
-            fig, ax = plt.subplots(figsize=(10, 6))
-            ax.barh(top_15['feature'], top_15['importance'], color='#2980B9')
-            ax.set_xlabel("Importance Score")
-            ax.set_title("What factors matter most for attendance?")
-            plt.tight_layout()
-            st.pyplot(fig)
-            plt.close()
+            
+            fig = go.Figure(go.Bar(
+                y=top_15['feature'], x=top_15['importance'], orientation='h',
+                marker=dict(
+                    color=top_15['importance'],
+                    colorscale=[[0, '#6C63FF'], [0.5, '#00D2FF'], [1, '#00C9A7']],
+                    cornerradius=6,
+                ),
+                text=[f"  {v:.4f}" for v in top_15['importance']], textposition='outside',
+                textfont=dict(size=11),
+                hovertemplate='<b>%{y}</b><br>Importance: %{x:.4f}<extra></extra>',
+            ))
+            fig.update_layout(title='What factors matter most for attendance?')
+            fig.update_xaxes(title='Importance Score')
+            fig.update_yaxes(title='')
+            clean_layout(fig, height=450)
+            st.plotly_chart(fig, width='stretch')
         
-        # explanation
+        # how it works
         st.markdown("---")
-        st.subheader("How the Model Works")
-        active_name = model_info['model_name'].upper()
-        if model_info['model_name'] == 'xgboost':
-            st.markdown(f"""
-            **Algorithm:** XGBoost (Extreme Gradient Boosting)
+        st.markdown("### 💡 How the Model Works")
+        
+        with st.expander("Click to learn about the algorithm", expanded=False):
+            if model_info['model_name'] == 'xgboost':
+                st.markdown(f"""
+                **Algorithm:** XGBoost (Extreme Gradient Boosting)
+                
+                XGBoost builds multiple decision trees sequentially — each new tree
+                corrects mistakes from the previous ones (*boosting*).
+                
+                **Why XGBoost?**
+                - `scale_pos_weight` handles class imbalance natively
+                - Captures complex feature interactions (topic × time × student history)
+                - Built-in L1/L2 regularization prevents overfitting on our {len(df):,} row dataset
+                - Provides feature importance rankings
+                """)
+            else:
+                st.markdown(f"""
+                **Algorithm:** Random Forest
+                
+                Random Forest builds many decision trees in parallel on random data subsets,
+                then takes a majority vote (*bagging*). This reduces overfitting.
+                
+                **Why Random Forest won this round?**
+                - `class_weight='balanced'` handles imbalanced data natively
+                - Less prone to overfitting on our {len(df):,} row dataset
+                - Robust to noisy features and outliers
+                - Provides feature importance rankings
+                """)
             
-            XGBoost builds multiple decision trees sequentially, where each new tree 
-            tries to fix the mistakes of the previous ones. This is called "boosting."
-            
-            **Why XGBoost for this problem:**
-            - Handles imbalanced data using `scale_pos_weight`
-            - Captures complex interactions between features (e.g., topic + time + student history)
-            - Built-in regularization prevents overfitting on our 5,800 row dataset
-            - Provides feature importance rankings (shown above)
+            st.markdown("""
+            ---
+            **Key Metrics:**
+            | Metric | What it measures |
+            |--------|-----------------|
+            | **F1 Score** | Balance between precision & recall *(primary metric)* |
+            | **AUC-ROC** | How well the model separates attendees from no-shows |
+            | **Accuracy** | Overall correctness *(misleading with imbalanced data)* |
             """)
-        else:
-            st.markdown(f"""
-            **Algorithm:** Random Forest
-            
-            Random Forest builds many decision trees in parallel on random subsets of data, 
-            then takes a majority vote. This "bagging" approach reduces overfitting.
-            
-            **Why Random Forest won this round:**
-            - `class_weight='balanced'` handles imbalanced data natively
-            - Less prone to overfitting on our 5,800 row dataset
-            - Robust to noisy features and outliers
-            - Provides feature importance rankings (shown above)
-            """)
-        st.markdown("""
-        **Key Metrics Explained:**
-        - **F1 Score** - Balance between precision and recall (most important for us)
-        - **AUC-ROC** - How well the model separates attendees from non-attendees
-        - **Accuracy** - Overall correctness (can be misleading with imbalanced data)
-        """)
         
         # retraining log
         log_path = os.path.join(MODELS_DIR, "retrain_log.txt")
         if os.path.exists(log_path):
-            st.markdown("---")
-            st.subheader("Retraining History")
-            with open(log_path, 'r') as f:
-                log_lines = f.readlines()
-            if log_lines:
-                for line in log_lines[-10:]:  # show last 10 entries
-                    st.text(line.strip())
-            else:
-                st.info("No retraining attempts yet.")
+            with st.expander("📜 Retraining History"):
+                with open(log_path, 'r') as f:
+                    log_lines = f.readlines()
+                if log_lines:
+                    for line in log_lines[-10:]:
+                        st.code(line.strip(), language=None)
+                else:
+                    st.info("No retraining attempts yet.")
     
     else:
-        st.warning("No trained model found. Please run the training pipeline first.")
+        st.warning("⚠️ No trained model found. Run the training pipeline first:")
         st.code("python main.py", language="bash")
-
-
-# ---- Footer ----
-st.sidebar.markdown("---")
-st.sidebar.markdown("Built by **Rahul Purohit**")
-st.sidebar.markdown("CSE Department")
-st.sidebar.markdown(f"Data: {df['student_id'].nunique()} students, {df['event_id'].nunique()} events")
