@@ -103,7 +103,7 @@ streamlit run app.py
 
 ### 📦 Data Source & Synthesis
 
-This project uses **synthetically generated data** — no external download required.The script [`generate_data.py`](generate_data.py) creates realistic workshop attendance records from scratch using probability-based rules that mimic real student behavior at Vijaybhoomi University:
+This project uses **synthetically generated data** — no external download required. The script [`generate_data.py`](generate_data.py) creates realistic workshop attendance records from scratch using probability-based rules that mimic real student behavior at Vijaybhoomi University:
 
 - **500 students** across 4 VBU schools, each with randomized CGPA, club activity, and semester
 - **100 workshop events** spanning 16 cross-school topics, with varied speakers, time slots, and modes
@@ -143,26 +143,58 @@ The Streamlit dashboard has **5 interactive pages** with a branded splash screen
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
-│  master_dataset  │────▶│  Feature Engine   │────▶│   Model Training    │
-│     .csv         │     │  (19 → 69 feat)  │     │  XGB + RF + LR      │
-└─────────────────┘     └──────────────────┘     └─────────┬───────────┘
-        │                        │                         │
-        │              school-topic affinity                │
-        │              16 topics × 4 schools                │
-        │                                                   │
-        ┌──────────────────────────────────────────────────┘
-        ▼
-┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│  SQLite DB   │     │  Best Model .pkl │     │  Streamlit App   │
-│  (normalized)│     │  + metadata.json │────▶│  (5 pages)       │
-└──────────────┘     └──────────────────┘     └──────────────────┘
-                              │
-                     ┌────────▼────────┐
-                     │  Retrain Pipeline│
-                     │  (hot-swap)      │
-                     └─────────────────┘
+                         ┌──────────────────────┐
+                         │   generate_data.py    │
+                         │  (synthesize realistic│
+                         │   attendance records) │
+                         └──────────┬───────────┘
+                                    │ 500 students, 100 events
+                                    │ 16 topics × 4 VBU schools
+                                    ▼
+┌──────────────────┐     ┌──────────────────────┐
+│   main.py        │────▶│  SQLite Database      │
+│   (orchestrator) │     │  Students · Events ·  │
+│                  │     │  Registrations · Models│
+└──────────────────┘     └──────────┬───────────┘
+                                    │ SQL JOIN query
+                                    ▼
+                         ┌──────────────────────┐
+                         │  Feature Engineering  │
+                         │  20 raw → 69 features │
+                         │  + school-topic affin.│
+                         └──────────┬───────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+             ┌───────────┐  ┌────────────┐  ┌────────────┐
+             │  XGBoost  │  │  Random    │  │  Logistic  │
+             │           │  │  Forest    │  │  Regression│
+             └─────┬─────┘  └─────┬──────┘  └─────┬──────┘
+                   │              │               │
+                   └──────────────┼───────────────┘
+                                  │ compare F1 → pick winner
+                                  ▼
+                         ┌──────────────────────┐
+                         │  Best Model (.pkl)   │
+                         │  + metadata + thresh.│
+                         └──────────┬───────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+         ┌───────────────────┐           ┌───────────────────┐
+         │  Streamlit App    │           │  Retrain Pipeline  │
+         │  (5 pages)        │           │  (hot-swap w/ 1%   │
+         │                   │           │   improvement gate)│
+         │  Overview         │           └───────────────────┘
+         │  Predict          │
+         │  Trends           │
+         │  Topic Analysis   │
+         │  Model Perf.      │
+         │  Maintenance      │
+         └───────────────────┘
 ```
+
+**Data flow:** `generate_data.py` → CSV → `main.py` loads into SQLite → training reads from DB via SQL JOIN → 69 features engineered → 3 models compete → winner deployed → dashboard serves predictions.
 
 ---
 
@@ -275,7 +307,6 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 - [ ] Deploy on cloud with scheduled retraining
 - [ ] A/B testing for promotion strategies
 - [ ] Add weather data for offline event predictions
-- [ ] Per-student prediction (which specific students will attend)
 - [ ] CGPA integration from university records
 
 ---
