@@ -153,7 +153,7 @@ def predict_single_event(event_details, historical_df):
     
     # extract only the new event rows
     new_event_mask = featured_df['event_id'] == 'E_NEW'
-    X_new = featured_df.loc[new_event_mask, feature_cols]
+    X_new = featured_df.loc[new_event_mask].copy()
     
     # handle any missing columns (features present in training but not here)
     for col in feature_cols:
@@ -190,7 +190,7 @@ def predict_batch(df):
     feature_cols = metadata.get('feature_columns', [])
     
     featured_df, _ = run_feature_pipeline(df)
-    X = featured_df[feature_cols].copy()
+    X = featured_df.copy()
     
     # handle missing columns
     for col in feature_cols:
