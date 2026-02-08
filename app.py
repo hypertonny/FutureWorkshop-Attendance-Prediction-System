@@ -715,15 +715,23 @@ elif page == "📈  Attendance Trends":
     
     # heatmap
     st.markdown("### 🗓️ Day × Time Slot Heatmap")
+    st.info(
+        "**Why Day × Time Slot?** These are the two scheduling factors organizers "
+        "can directly control. Other features (speaker, topic, exam proximity) are "
+        "already shown above individually. A heatmap of Day vs Time reveals their "
+        "**interaction effect** — e.g., afternoons are great on weekdays but not weekends. "
+        "This helps organizers pick the optimal (day, slot) combo rather than looking "
+        "at each factor in isolation."
+    )
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     slot_day = df.groupby(['day_of_week', 'time_slot'])['attended'].mean().unstack(fill_value=0)
     slot_day = slot_day.reindex(day_order)
     
     fig = go.Figure(go.Heatmap(
         z=slot_day.values, x=slot_day.columns.tolist(), y=slot_day.index.tolist(),
-        colorscale=[[0, '#1E1E2E'], [0.5, '#6C63FF'], [1, '#00D2FF']],
+        colorscale='YlOrRd',
         text=[[f"{v:.0%}" for v in row] for row in slot_day.values],
-        texttemplate="%{text}", textfont=dict(size=12),
+        texttemplate="%{text}", textfont=dict(size=12, color='black'),
         hovertemplate='<b>%{y} - %{x}</b><br>Rate: %{z:.1%}<extra></extra>',
     ))
     fig.update_layout(title='When do students show up the most?')
@@ -1026,6 +1034,30 @@ elif page == "⚙️  Model Performance":
             | **Precision** | Of those predicted to attend, how many actually did |
             | **Recall** | Of those who attended, how many did we predict correctly |
             | **Accuracy** | Overall correctness *(misleading with imbalanced data)* |
+            """)
+        
+        with st.expander("🔬 Multicollinearity & Feature Strategy", expanded=False):
+            st.markdown("""
+            **73 features from 20 raw columns — isn't that multicollinear?**
+            
+            Yes, engineered features are **intentionally correlated** with their sources.
+            For example, `cgpa_band_high` is derived from `cgpa`, so they will correlate.
+            Here's why that's handled:
+            
+            | Model | Multicollinearity Impact | How We Handle It |
+            |-------|------------------------|------------------|
+            | **XGBoost** | ✅ Immune — tree splits don't care about correlation | L1/L2 regularization prunes redundant splits |
+            | **Random Forest** | ✅ Immune — random feature sampling at each split reduces redundancy | `max_features='sqrt'` ensures diversity |
+            | **Logistic Regression** | ⚠️ Affected — correlated features inflate coefficients | Used as a **baseline only**, not for interpretation |
+            
+            **Why 73 features anyway?**
+            - Raw columns have weak correlation with `attended` (~0.08 max)
+            - Interaction terms like `dept_topic_match` and `recent_att_x_event` capture **non-linear patterns** raw columns miss
+            - Tree models automatically ignore unhelpful features (importance → 0)
+            - The feature importance chart above shows which features actually matter
+            
+            **In short:** More features give the model more signal to choose from.
+            Tree-based models are excellent at selecting useful ones and ignoring noise.
             """)
         
         # retraining log
