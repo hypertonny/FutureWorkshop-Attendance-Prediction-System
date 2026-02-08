@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Data (large files - keep structure but not DB)
+data/workshop.db
+
+# Models (generated files - can be retrained)
+models/*.pkl
+
+# Streamlit
+streamlit_out.txt
+streamlit_err.txt
