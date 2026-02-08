@@ -45,13 +45,14 @@ DEFAULT_OUTPUT = os.path.join(BASE_DIR, "master_dataset.csv")
 BACKUP_CSV = os.path.join(BASE_DIR, "master_dataset_backup.csv")
 
 # ---- Configuration for synthetic data ----
-DEPARTMENTS = ['CSE', 'IT', 'ECE', 'EE', 'MECH', 'CIVIL', 'BBA', 'MBA']
+DEPARTMENTS = ['School of Technology', 'School of Design', 'School of Business', 'School of Music']
 TOPICS = [
     'Data Science', 'Machine Learning', 'AI & Deep Learning',
     'Web Development', 'Cybersecurity', 'Cloud Computing',
-    'Blockchain', 'Career Guidance', 'IoT', 'DevOps',
-    'Open Source', 'Mobile App Dev', 'Game Development',
-    'AR/VR', 'UI/UX Design', 'Competitive Programming',
+    'UI/UX Design', 'Career Guidance', 'Entrepreneurship',
+    'Digital Marketing', 'Product Management', 'Music Production',
+    'Sound Design', 'Creative Coding', 'Design Thinking',
+    'Branding & Identity',
 ]
 SPEAKER_TYPES = ['Industry', 'Alumni', 'Faculty', 'Student']
 TIME_SLOTS = ['Morning (9-11 AM)', 'Afternoon (2-4 PM)', 'Evening (5-7 PM)']
@@ -190,9 +191,9 @@ def compute_attendance_probability(row):
     
     # topic popularity — wider spread
     hot_topics = ['Data Science', 'Machine Learning', 'AI & Deep Learning']
-    warm_topics = ['Cloud Computing', 'Cybersecurity', 'Web Development']
-    mild_topics = ['Blockchain', 'Career Guidance']
-    cold_topics = ['IoT', 'DevOps', 'Open Source']
+    warm_topics = ['UI/UX Design', 'Entrepreneurship', 'Product Management']
+    mild_topics = ['Creative Coding', 'Career Guidance', 'Design Thinking']
+    cold_topics = ['Sound Design', 'Branding & Identity', 'Cybersecurity']
     
     if row['topic'] in hot_topics:
         base_prob += 0.14
@@ -261,17 +262,32 @@ def compute_attendance_probability(row):
     
     # ---- Interaction Effects (non-linear) ----
     
-    # department-topic affinity: tech students + tech topics
-    tech_depts = ['CSE', 'IT', 'ECE']
+    # school-topic affinity: students engage more with topics from their field
     tech_topics = ['Data Science', 'Machine Learning', 'AI & Deep Learning',
                    'Web Development', 'Cybersecurity', 'Cloud Computing']
-    if row['department'] in tech_depts and row['topic'] in tech_topics:
+    design_topics = ['UI/UX Design', 'Design Thinking', 'Branding & Identity', 'Creative Coding']
+    business_topics = ['Entrepreneurship', 'Digital Marketing', 'Product Management']
+    music_topics = ['Music Production', 'Sound Design']
+    
+    dept = row['department']
+    topic = row['topic']
+    
+    if dept == 'School of Technology' and topic in tech_topics:
+        base_prob += 0.10
+    elif dept == 'School of Design' and topic in design_topics:
+        base_prob += 0.10
+    elif dept == 'School of Business' and topic in business_topics:
+        base_prob += 0.10
+    elif dept == 'School of Music' and topic in music_topics:
         base_prob += 0.10
     
-    # non-tech students at career guidance get a boost
-    non_tech = ['CIVIL', 'MECH', 'BBA', 'MBA']
-    if row['department'] in non_tech and row['topic'] == 'Career Guidance':
-        base_prob += 0.08
+    # cross-school curiosity: career guidance + entrepreneurship appeal to everyone
+    if topic in ['Career Guidance', 'Entrepreneurship']:
+        base_prob += 0.05
+    
+    # design + music students at creative coding = strong affinity
+    if dept in ['School of Design', 'School of Music'] and topic == 'Creative Coding':
+        base_prob += 0.06
     
     # high club + early reg = super engaged (interaction)
     if row['club_activity_level'] == 'High' and row['registration_timing'] == 'Early':

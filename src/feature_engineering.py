@@ -185,12 +185,18 @@ def add_interaction_features(df):
     
     # --- NEW v2 interaction features ---
     
-    # dept-topic match: 1 if tech dept + tech topic, else 0
-    tech_depts = ['CSE', 'IT', 'ECE']
+    # dept-topic match: 1 if school + matching topic area, else 0
     tech_topics = ['Data Science', 'Machine Learning', 'AI & Deep Learning',
                    'Web Development', 'Cybersecurity', 'Cloud Computing']
+    design_topics = ['UI/UX Design', 'Design Thinking', 'Branding & Identity', 'Creative Coding']
+    business_topics = ['Entrepreneurship', 'Digital Marketing', 'Product Management']
+    music_topics = ['Music Production', 'Sound Design']
+    
     df['dept_topic_match'] = (
-        df['department'].isin(tech_depts) & df['topic'].isin(tech_topics)
+        (df['department'].eq('School of Technology') & df['topic'].isin(tech_topics)) |
+        (df['department'].eq('School of Design') & df['topic'].isin(design_topics)) |
+        (df['department'].eq('School of Business') & df['topic'].isin(business_topics)) |
+        (df['department'].eq('School of Music') & df['topic'].isin(music_topics))
     ).astype(int)
     
     # student quality score: combines CGPA, club, and history
