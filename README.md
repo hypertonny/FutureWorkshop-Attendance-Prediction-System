@@ -88,6 +88,17 @@ streamlit run app.py
 > No CSV file needed — `main.py` auto-generates synthetic data on a fresh clone.
 > The dashboard opens at **http://localhost:8501** 🎉
 
+### 📦 Data Source & Synthesis
+
+This project uses **synthetically generated data** — no external download required.  
+The script [`generate_data.py`](generate_data.py) creates realistic workshop attendance records from scratch using probability-based rules that mimic real student behavior at Vijaybhoomi University:
+
+- **500 students** across 4 VBU schools, each with randomized CGPA, club activity, and semester
+- **100 workshop events** spanning 16 cross-school topics, with varied speakers, time slots, and modes
+- **~8 000 registrations** with attendance determined by 10+ realistic factors (club activity, speaker type, exam proximity, topic popularity, registration timing, etc.)
+
+> On a fresh clone, `python main.py` calls `generate_data.py` automatically if no CSV exists — the repo is fully self-contained.
+
 ### Data Generator CLI
 
 ```bash
@@ -251,6 +262,21 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 - [ ] Add weather data for offline event predictions
 - [ ] Per-student prediction (which specific students will attend)
 - [ ] CGPA integration from university records
+
+---
+
+## 🗓️ Updation & Maintenance Timelines
+
+| Phase | Frequency | Trigger | Action |
+|-------|-----------|---------|--------|
+| **🔄 Model Retraining** | Every semester start | New semester (Aug / Jan) | `python src/retrain.py` |
+| **📊 Data Refresh** | After every 10+ events | New attendance logged | `python src/retrain.py --from-db` |
+| **🔍 Performance Audit** | Monthly | Accuracy drops below threshold | Review features + threshold sweep |
+| **🧹 Data Cleanup** | End of each semester | Semester ends | Archive old data, regenerate baseline |
+| **🚀 Feature Updates** | As needed | New data sources (LMS, weather) | Update `feature_engineering.py`, retrain |
+| **🛡️ Dependency Updates** | Quarterly | Security patches / new releases | Update `requirements.txt`, test pipeline |
+
+**Retraining safeguard:** The retrain pipeline only deploys a new model if it beats the current one by **≥ 1 % F1 score**, preventing unnecessary swaps from random variance.
 
 ---
 

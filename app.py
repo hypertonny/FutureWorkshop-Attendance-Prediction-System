@@ -1071,6 +1071,57 @@ elif page == "⚙️  Model Performance":
                         st.code(line.strip(), language=None)
                 else:
                     st.info("No retraining attempts yet.")
+        
+        # ---- Updation & Maintenance Timelines ----
+        st.markdown("---")
+        st.markdown("### 🗓️ Updation & Maintenance Timelines")
+        
+        st.markdown("""
+        A clear schedule ensures the model stays accurate and the system remains reliable
+        as new semesters begin and student behavior evolves.
+        """)
+        
+        timeline_data = pd.DataFrame([
+            {"Phase": "🔄 Model Retraining", "Frequency": "Every semester start", "Trigger": "New semester begins (Aug / Jan)", "Action": "`python src/retrain.py`"},
+            {"Phase": "📊 Data Refresh", "Frequency": "After every 10+ events", "Trigger": "New workshop attendance logged", "Action": "`python src/retrain.py --from-db`"},
+            {"Phase": "🔍 Performance Audit", "Frequency": "Monthly", "Trigger": "Prediction accuracy drops below threshold", "Action": "Review feature importance + threshold sweep"},
+            {"Phase": "🧹 Data Cleanup", "Frequency": "End of each semester", "Trigger": "Semester ends", "Action": "Archive old data, regenerate fresh baseline"},
+            {"Phase": "🚀 Feature Updates", "Frequency": "As needed", "Trigger": "New data sources available (LMS, weather)", "Action": "Update `feature_engineering.py`, retrain"},
+            {"Phase": "🛡️ Dependency Updates", "Frequency": "Quarterly", "Trigger": "Security patches / library releases", "Action": "Update `requirements.txt`, test pipeline"},
+        ])
+        st.dataframe(timeline_data.set_index("Phase"), use_container_width=True)
+        
+        with st.expander("📋 Maintenance Decision Rules", expanded=False):
+            st.markdown("""
+            **When to retrain the model:**
+            - At the start of each new semester (student behavior shifts)
+            - After 10+ new events have been conducted
+            - If prediction accuracy drops noticeably vs actual outcomes
+            
+            **Retraining safeguard:**
+            - The pipeline only deploys a new model if it beats the current one by **≥ 1% F1 score**
+            - This prevents unnecessary model swaps from random variance
+            
+            **Monitoring checklist:**
+            | Check | Frequency | Tool |
+            |-------|-----------|------|
+            | Compare predicted vs actual attendance | After each event | Dashboard overview |
+            | Feature importance drift | Monthly | Model Performance page |
+            | Data distribution shift | Per semester | `generate_data.py --regenerate` |
+            | Model comparison scores | Per retrain | `model_comparison.json` |
+            
+            **Project timeline (completed):**
+            
+            | Milestone | Date | Status |
+            |-----------|------|--------|
+            | Problem formulation & data design | Week 1 | ✅ Done |
+            | Data generator + feature engineering | Week 2 | ✅ Done |
+            | 3-model training pipeline | Week 3 | ✅ Done |
+            | Streamlit dashboard (5 pages) | Week 4 | ✅ Done |
+            | Prediction engine + retrain pipeline | Week 5 | ✅ Done |
+            | VBU 4-school integration + bug fixes | Week 6 | ✅ Done |
+            | Final audit & submission | Week 7 | ✅ Done |
+            """)
     
     else:
         st.warning("⚠️ No trained model found. Run the training pipeline first:")
