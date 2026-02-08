@@ -14,7 +14,7 @@ After running this, you can:
   - Make predictions:      python src/predict.py
 
 Author: Rahul Purohit
-Department: Computer Science and Engineering
+Reg: 2024SEPVUGP0079 | School of Technology — Vijaybhoomi University
 """
 
 import os

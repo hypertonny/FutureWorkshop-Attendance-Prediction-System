@@ -73,7 +73,7 @@ class Registration(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     student_id = Column(String, nullable=False)
     event_id = Column(String, nullable=False)
-    registration_timing = Column(String)  # Early, Medium, Late
+    registration_timing = Column(String)  # Early, On-time, Late
     attended = Column(Integer, default=0)  # 0 or 1
     past_attendance_rate = Column(Float, default=0.0)
     past_events_count = Column(Integer, default=0)

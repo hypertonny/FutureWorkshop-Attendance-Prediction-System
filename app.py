@@ -383,7 +383,7 @@ with st.sidebar:
     <div style="text-align: center; padding: 10px;">
         <p style="color: #8B8FA3; font-size: 0.8rem; margin: 4px 0;">Built by</p>
         <p style="font-weight: 600; font-size: 0.95rem; margin: 4px 0;">Rahul Purohit</p>
-        <p style="color: #6C63FF; font-size: 0.8rem; margin: 4px 0;">CSE Department</p>
+        <p style="color: #6C63FF; font-size: 0.8rem; margin: 4px 0;">School of Technology</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1038,7 +1038,7 @@ elif page == "⚙️  Model Performance":
         
         with st.expander("🔬 Multicollinearity & Feature Strategy", expanded=False):
             st.markdown("""
-            **73 features from 20 raw columns — isn't that multicollinear?**
+            **69 features from 20 raw columns — isn't that multicollinear?**
             
             Yes, engineered features are **intentionally correlated** with their sources.
             For example, `cgpa_band_high` is derived from `cgpa`, so they will correlate.
@@ -1050,7 +1050,7 @@ elif page == "⚙️  Model Performance":
             | **Random Forest** | ✅ Immune — random feature sampling at each split reduces redundancy | `max_features='sqrt'` ensures diversity |
             | **Logistic Regression** | ⚠️ Affected — correlated features inflate coefficients | Used as a **baseline only**, not for interpretation |
             
-            **Why 73 features anyway?**
+            **Why 69 features anyway?**
             - Raw columns have weak correlation with `attended` (~0.08 max)
             - Interaction terms like `dept_topic_match` and `recent_att_x_event` capture **non-linear patterns** raw columns miss
             - Tree models automatically ignore unhelpful features (importance → 0)

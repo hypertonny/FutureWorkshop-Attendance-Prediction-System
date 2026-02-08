@@ -52,7 +52,7 @@ The model captures **school-topic affinity** — e.g., Technology students are m
 | Feature | Description |
 |---------|-------------|
 | 🤖 **3-Model Comparison** | XGBoost + Random Forest + Logistic Regression — automatically picks the winner by F1 |
-| 📈 **66 Engineered Features** | From 19 raw columns → rich behavioral signals including school-topic affinity |
+| 📊 **69 Engineered Features** | From 19 raw columns → rich behavioral signals including school-topic affinity |
 | 🏫 **Cross-School Intelligence** | School-topic affinity modeling for all 4 VBU schools & 16 workshop topics |
 | 🧪 **Standalone Data Generator** | Synthesize realistic data from scratch — no CSV needed |
 | ♻️ **Auto-Retraining Pipeline** | Hot-swap models with 1% improvement gate |
@@ -122,7 +122,7 @@ The Streamlit dashboard has **5 interactive pages** with a branded splash screen
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
 │  master_dataset  │────▶│  Feature Engine   │────▶│   Model Training    │
-│     .csv         │     │  (19 → 66 feat)  │     │  XGB + RF + LR      │
+│     .csv         │     │  (19 → 69 feat)  │     │  XGB + RF + LR      │
 └─────────────────┘     └──────────────────┘     └─────────┬───────────┘
         │                        │                         │
         │              school-topic affinity                │
@@ -197,7 +197,7 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 ├── src/
 │   ├── __init__.py
 │   ├── database.py            # SQLAlchemy ORM (4 tables)
-│   ├── feature_engineering.py # 19 raw → 66 features (incl. school-topic affinity)
+│   ├── feature_engineering.py # 19 raw → 69 features (incl. school-topic affinity)
 │   ├── train_model.py         # XGBoost + RF + LR training + NaN imputation
 │   ├── retrain.py             # Hot-retraining pipeline (1% improvement gate)
 │   └── predict.py             # Prediction engine (handles missing columns)
@@ -217,9 +217,9 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 | Model | F1 Score | AUC-ROC | Accuracy |
 |-------|----------|---------|----------|
-| **XGBoost (Winner)** | **0.763** | **0.794** | **0.726** |
-| Random Forest | 0.755 | 0.795 | 0.700 |
-| Logistic Regression | 0.761 | 0.807 | 0.703 |
+| XGBoost | 0.733 | 0.778 | 0.656 |
+| Random Forest | 0.736 | 0.785 | 0.683 |
+| **Logistic Regression (Winner)** | **0.748** | **0.801** | **0.683** |
 
 > F1 is the primary metric — accuracy alone is misleading with imbalanced data.
 > Winner is auto-selected by highest F1 score. Results vary by seed.
