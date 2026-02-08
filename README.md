@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎯 Workshop Attendance Prediction System
+# 🎯 FutureWorkshop — Attendance Prediction System
 
 **Predict. Plan. Pack the room.**
 
@@ -12,7 +12,7 @@
 
 <br>
 
-*An ML-powered system that predicts student turnout for university workshops — helping organizers plan better events, allocate resources, and boost engagement.*
+*An ML-powered system built for **Vijaybhoomi University** that predicts student turnout for FutureWorkshop events — helping organizers plan better workshops, allocate resources, and boost engagement across all four schools.*
 
 <br>
 
@@ -28,20 +28,32 @@ University workshop organizers face a common frustration:
 
 > *"50 students registered… but only 12 showed up."*
 
-Without knowing expected turnout, organizers over-book venues, waste catering budgets, and can't plan logistics effectively. **This system solves that.**
+Without knowing expected turnout, organizers over-book venues, waste catering budgets, and can't plan logistics effectively. At **Vijaybhoomi University**, with four distinct schools running cross-disciplinary FutureWorkshop events, this prediction challenge is even more critical. **This system solves that.**
 
 ---
 
 ## 💡 The Solution
 
-A machine learning pipeline that analyzes **historical attendance patterns** across topics, speakers, timing, student behavior, and more — then predicts how many students will actually show up for a new event.
+A machine learning pipeline that analyzes **historical attendance patterns** across topics, speakers, timing, student behavior, and **school-topic affinity** — then predicts how many students will actually show up for a new event.
+
+### Vijaybhoomi University — 4 Schools
+
+| School | Domain Topics |
+|--------|--------------|
+| 🖥️ **School of Technology** | Data Science, ML, AI & Deep Learning, Web Dev, Cybersecurity, Cloud Computing |
+| 🎨 **School of Design** | UI/UX Design, Design Thinking, Branding & Identity, Creative Coding |
+| 💼 **School of Business** | Entrepreneurship, Digital Marketing, Product Management |
+| 🎵 **School of Music** | Music Production, Sound Design |
+
+The model captures **school-topic affinity** — e.g., Technology students are more likely to attend a Data Science workshop, while Design students gravitate toward UI/UX events.
 
 ### Key Features
 
 | Feature | Description |
 |---------|-------------|
 | 🤖 **3-Model Comparison** | XGBoost + Random Forest + Logistic Regression — automatically picks the winner by F1 |
-| 📈 **73 Engineered Features** | From 19 raw columns → rich behavioral signals |
+| 📈 **66 Engineered Features** | From 19 raw columns → rich behavioral signals including school-topic affinity |
+| 🏫 **Cross-School Intelligence** | School-topic affinity modeling for all 4 VBU schools & 16 workshop topics |
 | 🧪 **Standalone Data Generator** | Synthesize realistic data from scratch — no CSV needed |
 | ♻️ **Auto-Retraining Pipeline** | Hot-swap models with 1% improvement gate |
 | 📊 **Interactive Dashboard** | 5-page Streamlit app with predictions, analytics & splash screen |
@@ -110,9 +122,12 @@ The Streamlit dashboard has **5 interactive pages** with a branded splash screen
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
 │  master_dataset  │────▶│  Feature Engine   │────▶│   Model Training    │
-│     .csv         │     │  (19 → 66 cols)  │     │  XGB + RF + LR      │
+│     .csv         │     │  (19 → 66 feat)  │     │  XGB + RF + LR      │
 └─────────────────┘     └──────────────────┘     └─────────┬───────────┘
-                                                           │
+        │                        │                         │
+        │              school-topic affinity                │
+        │              16 topics × 4 schools                │
+        │                                                   │
         ┌──────────────────────────────────────────────────┘
         ▼
 ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
@@ -132,13 +147,14 @@ The Streamlit dashboard has **5 interactive pages** with a branded splash screen
 
 ### Feature Engineering Pipeline
 
-Raw data has weak correlations (~0.08). The pipeline creates **4 categories** of derived features:
+Raw data has weak correlations (~0.08). The pipeline creates **5 categories** of derived features:
 
 | Category | Examples | Why it helps |
 |----------|----------|-------------|
 | ⏰ **Temporal** | `semester_week`, `is_weekend`, `month` | Attendance drops late in semester |
 | 👤 **Student History** | `rolling_attendance`, `streak`, `recent_3_rate` | Past behavior predicts future |
 | 🔥 **Event Popularity** | `topic_popularity`, `speaker_pull`, `dept_engagement` | Some topics just hit different |
+| 🏫 **School-Topic Affinity** | `dept_topic_match` | Tech students → Data Science, Design students → UI/UX |
 | 🔗 **Interactions** | `combined_quality_attract`, `exam_pressure`, `registration_commitment` | Combined effects matter |
 
 ### Model Training
@@ -177,15 +193,14 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 ├── requirements.txt           # Dependencies
 ├── generate_data.py           # Standalone data generator (CLI + programmatic)
 ├── master_dataset.csv         # Training data (auto-generated if missing)
-├── information.md             # Detailed project documentation
 │
 ├── src/
 │   ├── __init__.py
 │   ├── database.py            # SQLAlchemy ORM (4 tables)
-│   ├── feature_engineering.py # 19 raw → 73 features
+│   ├── feature_engineering.py # 19 raw → 66 features (incl. school-topic affinity)
 │   ├── train_model.py         # XGBoost + RF + LR training + NaN imputation
-│   ├── retrain.py             # Hot-retraining pipeline
-│   └── predict.py             # Prediction engine
+│   ├── retrain.py             # Hot-retraining pipeline (1% improvement gate)
+│   └── predict.py             # Prediction engine (handles missing columns)
 │
 ├── models/                    # Auto-generated
 │   ├── *_latest.pkl           # Trained model files
@@ -202,12 +217,13 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 | Model | F1 Score | AUC-ROC | Accuracy |
 |-------|----------|---------|----------|
-| XGBoost | 0.730 | 0.783 | 0.688 |
-| **Random Forest (Winner)** | **0.735** | **0.784** | **0.694** |
-| Logistic Regression | 0.735 | 0.793 | 0.683 |
+| **XGBoost (Winner)** | **0.763** | **0.794** | **0.726** |
+| Random Forest | 0.755 | 0.795 | 0.700 |
+| Logistic Regression | 0.761 | 0.807 | 0.703 |
 
 > F1 is the primary metric — accuracy alone is misleading with imbalanced data.
 > Winner is auto-selected by highest F1 score. Results vary by seed.
+> Trained on 4 VBU schools with 16 cross-school FutureWorkshop topics.
 
 ---
 
@@ -230,9 +246,11 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 - [ ] Integrate with college LMS / Google Forms for real data
 - [ ] Student-level prediction (which specific students will attend)
 - [ ] Email/notification system for low predicted turnout
-- [ ] Deploy on cloud (AWS/GCP) with scheduled retraining
+- [ ] Deploy on cloud with scheduled retraining
 - [ ] A/B testing for promotion strategies
 - [ ] Add weather data for offline event predictions
+- [ ] Per-student prediction (which specific students will attend)
+- [ ] CGPA integration from university records
 
 ---
 
@@ -240,7 +258,7 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 ### Built with ☕ by Rahul Purohit
 
-*CSE Department — Vijaybhoomi University*
+*Reg: 2024SEPVUGP0079 · School of Technology — Vijaybhoomi University*
 
 <br>
 
