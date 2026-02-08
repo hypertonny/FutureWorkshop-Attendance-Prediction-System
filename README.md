@@ -41,11 +41,13 @@ A machine learning pipeline that analyzes **historical attendance patterns** acr
 | Feature | Description |
 |---------|-------------|
 | 🤖 **3-Model Comparison** | XGBoost + Random Forest + Logistic Regression — automatically picks the winner by F1 |
-| 📈 **66 Engineered Features** | From 19 raw columns → rich behavioral signals |
+| 📈 **73 Engineered Features** | From 19 raw columns → rich behavioral signals |
+| 🧪 **Standalone Data Generator** | Synthesize realistic data from scratch — no CSV needed |
 | ♻️ **Auto-Retraining Pipeline** | Hot-swap models with 1% improvement gate |
 | 📊 **Interactive Dashboard** | 5-page Streamlit app with predictions, analytics & splash screen |
 | 🗄️ **Scalable Database** | SQLite now, PostgreSQL-ready (just change one line) |
 | ⚖️ **Imbalanced Data Handling** | SMOTE + threshold optimization for real-world skew |
+| 🔄 **Fresh-Clone Ready** | `python main.py` auto-generates data if CSV is missing |
 
 ---
 
@@ -64,14 +66,28 @@ python -m venv .venv
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Initialize DB + Train models
+# 4. Initialize DB + Train models (auto-generates data if CSV is missing)
 python main.py
 
 # 5. Launch the dashboard
 streamlit run app.py
 ```
 
+> No CSV file needed — `main.py` auto-generates synthetic data on a fresh clone.
 > The dashboard opens at **http://localhost:8501** 🎉
+
+### Data Generator CLI
+
+```bash
+# Generate from scratch with custom params
+python generate_data.py --students 300 --events 50 --seed 123
+
+# Regenerate attendance for existing CSV
+python generate_data.py --regenerate
+
+# Full help
+python generate_data.py --help
+```
 
 ---
 
@@ -123,19 +139,19 @@ Raw data has weak correlations (~0.08). The pipeline creates **4 categories** of
 | ⏰ **Temporal** | `semester_week`, `is_weekend`, `month` | Attendance drops late in semester |
 | 👤 **Student History** | `rolling_attendance`, `streak`, `recent_3_rate` | Past behavior predicts future |
 | 🔥 **Event Popularity** | `topic_popularity`, `speaker_pull`, `dept_engagement` | Some topics just hit different |
-| 🔗 **Interactions** | `student_engagement_score`, `exam_is_near`, `high_promo_popular_topic` | Combined effects matter |
+| 🔗 **Interactions** | `combined_quality_attract`, `exam_pressure`, `registration_commitment` | Combined effects matter |
 
 ### Model Training
 
 ```
-Raw Data → SMOTE (if imbalanced) → Train XGBoost + Random Forest + Logistic Regression
-                                          ↓
-                                   Threshold Sweep (0.10 → 0.60)
-                                          ↓
-                                   Compare all 3 by F1 → Save winner
+Raw Data → NaN Imputation (median) → SMOTE (if imbalanced)
+    → Train XGBoost + Random Forest + Logistic Regression
+    → Threshold Sweep (0.10 → 0.60)
+    → Compare all 3 by F1 → Save winner
 ```
 
 - **3 Models**: XGBoost (gradient boosting), Random Forest (bagging), Logistic Regression (linear baseline with StandardScaler)
+- **NaN Handling**: Remaining NaN filled with column medians for LR/RF compatibility
 - **SMOTE**: Only applied when minority class < 35%
 - **Threshold Optimization**: Sweeps 0.10–0.60, picks threshold that maximizes F1
 - **5-Fold Cross Validation**: Ensures scores aren't just lucky splits
@@ -156,17 +172,18 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 ## 📁 Project Structure
 
 ```
-├── main.py                    # Entry point: init DB → load data → train
-├── app.py                     # Streamlit dashboard (5 pages)
+├── main.py                    # Entry point: auto-generate data → init DB → train
+├── app.py                     # Streamlit dashboard (5 pages, splash screen)
 ├── requirements.txt           # Dependencies
-├── generate_data.py           # Synthetic dataset generator
-├── master_dataset.csv         # Training data (5,829 rows)
+├── generate_data.py           # Standalone data generator (CLI + programmatic)
+├── master_dataset.csv         # Training data (auto-generated if missing)
+├── information.md             # Detailed project documentation
 │
 ├── src/
 │   ├── __init__.py
 │   ├── database.py            # SQLAlchemy ORM (4 tables)
-│   ├── feature_engineering.py # 19 raw → 66 features
-│   ├── train_model.py         # XGBoost + RF + LR training
+│   ├── feature_engineering.py # 19 raw → 73 features
+│   ├── train_model.py         # XGBoost + RF + LR training + NaN imputation
 │   ├── retrain.py             # Hot-retraining pipeline
 │   └── predict.py             # Prediction engine
 │
@@ -185,11 +202,12 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 | Model | F1 Score | AUC-ROC | Accuracy |
 |-------|----------|---------|----------|
-| **XGBoost (Winner)** | **0.763** | **0.794** | **0.726** |
-| Random Forest | 0.755 | 0.795 | 0.700 |
-| Logistic Regression | 0.761 | 0.807 | 0.703 |
+| XGBoost | 0.730 | 0.783 | 0.688 |
+| **Random Forest (Winner)** | **0.735** | **0.784** | **0.694** |
+| Logistic Regression | 0.735 | 0.793 | 0.683 |
 
 > F1 is the primary metric — accuracy alone is misleading with imbalanced data.
+> Winner is auto-selected by highest F1 score. Results vary by seed.
 
 ---
 
@@ -209,11 +227,12 @@ The pipeline only promotes a new model if it beats the current one by **≥ 1% F
 
 ## 🔮 Future Improvements
 
-- [ ] Add real-time feedback loop from actual event outcomes
+- [ ] Integrate with college LMS / Google Forms for real data
 - [ ] Student-level prediction (which specific students will attend)
 - [ ] Email/notification system for low predicted turnout
 - [ ] Deploy on cloud (AWS/GCP) with scheduled retraining
 - [ ] A/B testing for promotion strategies
+- [ ] Add weather data for offline event predictions
 
 ---
 
