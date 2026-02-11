@@ -25,3 +25,10 @@ models/
 # Streamlit
 streamlit_out.txt
 streamlit_err.txt
+
+# Docker
+nginx/logs/
+nginx/ssl/*.pem
+nginx/ssl/*.key
+.env
+.env.local
