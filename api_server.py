@@ -10,6 +10,8 @@ This serves:
   - /api/overview     -> dataset and model summary
   - /api/options      -> form dropdown options
   - /api/charts       -> aggregated chart payloads
+    - /api/topic-analysis -> topic-level aggregates for analysis page
+    - /api/model-details  -> model comparison + maintenance timeline
   - /api/predict      -> real model prediction for a planned event
 """
 
@@ -20,7 +22,7 @@ import json
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 
@@ -313,6 +315,157 @@ def build_charts_payload(df: pd.DataFrame) -> dict:
     return payload
 
 
+def build_topic_analysis_payload(df: pd.DataFrame, topic: str | None = None) -> dict:
+    selected_topic = (topic or "All Topics").strip()
+    available_topics = _safe_unique(df, "topic")
+
+    if selected_topic and selected_topic != "All Topics":
+        topic_df = df[df["topic"].astype(str) == selected_topic].copy() if "topic" in df.columns else df.iloc[0:0].copy()
+    else:
+        selected_topic = "All Topics"
+        topic_df = df.copy()
+
+    if topic_df.empty:
+        return {
+            "selected_topic": selected_topic,
+            "available_topics": available_topics,
+            "summary": {
+                "events": 0,
+                "registrations": 0,
+                "attended": 0,
+                "rate": 0.0,
+            },
+            "department": {"labels": [], "rates": []},
+            "semester": {"labels": [], "rates": []},
+            "mode": {"labels": [], "rates": [], "counts": [], "attended": []},
+            "club": {"labels": ["Low", "Medium", "High"], "rates": [0.0, 0.0, 0.0]},
+        }
+
+    summary = {
+        "events": int(topic_df["event_id"].nunique()) if "event_id" in topic_df.columns else 0,
+        "registrations": int(len(topic_df.index)),
+        "attended": int(topic_df["attended"].sum()) if "attended" in topic_df.columns else 0,
+        "rate": round(float(topic_df["attended"].mean()), 4) if "attended" in topic_df.columns else 0.0,
+    }
+
+    department = {"labels": [], "rates": []}
+    if {"department", "attended"}.issubset(topic_df.columns):
+        dept_rates = topic_df.groupby("department")["attended"].mean().sort_values(ascending=False)
+        department = {
+            "labels": dept_rates.index.tolist(),
+            "rates": _to_float_list(dept_rates),
+        }
+
+    semester = {"labels": [], "rates": []}
+    if {"semester", "attended"}.issubset(topic_df.columns):
+        sem_rates = topic_df.groupby("semester")["attended"].mean().sort_index()
+        semester = {
+            "labels": [str(int(v)) for v in sem_rates.index.tolist()],
+            "rates": _to_float_list(sem_rates),
+        }
+
+    mode = {"labels": [], "rates": [], "counts": [], "attended": []}
+    if {"mode", "attended"}.issubset(topic_df.columns):
+        mode_grouped = topic_df.groupby("mode").agg(
+            count=("attended", "count"),
+            attended=("attended", "sum"),
+            rate=("attended", "mean"),
+        )
+        mode = {
+            "labels": mode_grouped.index.tolist(),
+            "rates": _to_float_list(mode_grouped["rate"]),
+            "counts": [int(v) for v in mode_grouped["count"].tolist()],
+            "attended": [int(v) for v in mode_grouped["attended"].tolist()],
+        }
+
+    club_order = ["Low", "Medium", "High"]
+    club = {"labels": club_order, "rates": [0.0, 0.0, 0.0]}
+    if {"club_activity_level", "attended"}.issubset(topic_df.columns):
+        club_rates = topic_df.groupby("club_activity_level")["attended"].mean()
+        club = {
+            "labels": club_order,
+            "rates": [round(float(club_rates.get(level, 0.0)), 4) for level in club_order],
+        }
+
+    return {
+        "selected_topic": selected_topic,
+        "available_topics": available_topics,
+        "summary": summary,
+        "department": department,
+        "semester": semester,
+        "mode": mode,
+        "club": club,
+    }
+
+
+def build_model_details_payload() -> dict:
+    model_payload = _load_model_payload()
+    winner = model_payload.get("winner")
+
+    winner_meta = {}
+    if winner:
+        winner_meta_path = MODELS_DIR / f"{winner}_latest_meta.json"
+        if winner_meta_path.exists():
+            with open(winner_meta_path, "r", encoding="utf-8") as f:
+                winner_meta = json.load(f)
+
+    retrain_history = []
+    retrain_log_path = MODELS_DIR / "retrain_log.txt"
+    if retrain_log_path.exists():
+        with open(retrain_log_path, "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f.readlines() if line.strip()]
+        retrain_history = lines[-10:]
+
+    timeline = [
+        {
+            "phase": "Model Retraining",
+            "frequency": "Every semester start",
+            "trigger": "New semester begins",
+            "action": "python src/retrain.py",
+        },
+        {
+            "phase": "Data Refresh",
+            "frequency": "After every 10+ events",
+            "trigger": "New attendance logs available",
+            "action": "python src/retrain.py --from-db",
+        },
+        {
+            "phase": "Performance Audit",
+            "frequency": "Monthly",
+            "trigger": "Observed prediction quality drop",
+            "action": "Review threshold sweep + comparison metrics",
+        },
+        {
+            "phase": "Data Cleanup",
+            "frequency": "End of semester",
+            "trigger": "Semester close",
+            "action": "Archive old slices and refresh baseline",
+        },
+        {
+            "phase": "Dependency Updates",
+            "frequency": "Quarterly",
+            "trigger": "Security/library patch releases",
+            "action": "Update requirements and run smoke tests",
+        },
+    ]
+
+    features = winner_meta.get("feature_columns", []) if isinstance(winner_meta, dict) else []
+    comparison = model_payload.get("comparison", {})
+
+    return {
+        "winner": winner,
+        "winner_display": winner.replace("_", " ").title() if winner else "Unknown",
+        "metrics": model_payload.get("metrics", {}),
+        "threshold": model_payload.get("threshold", 0.5),
+        "comparison": comparison,
+        "feature_count": len(features),
+        "top_features": features[:15],
+        "retrain_history": retrain_history,
+        "maintenance_timeline": timeline,
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+
 def _json_response(handler: SimpleHTTPRequestHandler, status: int, payload: dict) -> None:
     body = json.dumps(payload).encode("utf-8")
     handler.send_response(status)
@@ -337,7 +490,9 @@ class WorkshopRequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
 
         try:
             if path == "/api/health":
@@ -357,6 +512,16 @@ class WorkshopRequestHandler(SimpleHTTPRequestHandler):
             if path == "/api/charts":
                 df = load_dataset()
                 _json_response(self, 200, build_charts_payload(df))
+                return
+
+            if path == "/api/topic-analysis":
+                df = load_dataset()
+                topic = query.get("topic", [None])[0]
+                _json_response(self, 200, build_topic_analysis_payload(df, topic))
+                return
+
+            if path == "/api/model-details":
+                _json_response(self, 200, build_model_details_payload())
                 return
         except Exception as exc:
             _json_response(self, 500, {"ok": False, "error": str(exc)})
@@ -424,7 +589,10 @@ class WorkshopRequestHandler(SimpleHTTPRequestHandler):
 def run_server(host: str = "0.0.0.0", port: int = 8000) -> None:
     server = ThreadingHTTPServer((host, port), WorkshopRequestHandler)
     print(f"[API] Serving frontend at http://{host}:{port}")
-    print(f"[API] Endpoints: /api/health, /api/overview, /api/options, /api/charts, /api/predict")
+    print(
+        "[API] Endpoints: /api/health, /api/overview, /api/options, /api/charts, "
+        "/api/topic-analysis, /api/model-details, /api/predict"
+    )
     server.serve_forever()
 
 

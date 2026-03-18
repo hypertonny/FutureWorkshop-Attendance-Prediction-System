@@ -1,1263 +1,351 @@
 <!DOCTYPE html>
-
-<html class="scroll-smooth" lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Workshop Predictor | ML Insights</title>
-<!-- Fonts -->
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=Syne:wght@400..800&amp;display=swap" rel="stylesheet"/>
-<!-- Tailwind CSS v3 -->
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              base: '#0a0d1a',
-              card: 'rgba(15, 22, 40, 0.8)',
-              border: 'rgba(255, 255, 255, 0.06)',
-              blue: '#4F8EF7',
-              cyan: '#00D4FF',
-              coral: '#FF6B9D',
-              text: '#E8EEFF',
-              muted: '#6B7A99',
-            }
-          },
-          fontFamily: {
-            syne: ['Syne', 'sans-serif'],
-            sans: ['DM Sans', 'sans-serif'],
-          },
-          animation: {
-            'shimmer': 'shimmer 2s infinite linear',
-            'spin-slow': 'spin 3s linear infinite',
-            'blob': 'blob 7s infinite',
-            'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
-          },
-          keyframes: {
-            shimmer: {
-              '0%': { backgroundPosition: '-200% 0' },
-              '100%': { backgroundPosition: '200% 0' },
-            },
-            blob: {
-              '0%': { transform: 'translate(0px, 0px) scale(1)' },
-              '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-              '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-              '100%': { transform: 'translate(0px, 0px) scale(1)' },
-            },
-            fadeInUp: {
-              '0%': { opacity: '0', transform: 'translateY(10px) scale(0.98)' },
-              '100%': { opacity: '1', transform: 'translateY(0) scale(1)' }
-            }
-          }
-        }
-      }
-    }
-  </script>
-<style data-purpose="custom-layout">
-    body {
-      background-color: #0a0d1a;
-      background-image: 
-        radial-gradient(circle at 20% 50%, rgba(79, 142, 247, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%);
-      color: #E8EEFF;
-      font-family: 'DM Sans', sans-serif;
-    }
-    .glass {
-      background: rgba(15, 22, 40, 0.6);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      transition: all 0.3s ease;
-    }
-    .glass:hover {
-      background: rgba(15, 22, 40, 0.8);
-      border-color: rgba(79, 142, 247, 0.3);
-      transform: translateY(-2px);
-    }
-    .gradient-text {
-      background: linear-gradient(90deg, #4F8EF7, #00D4FF, #FF6B9D);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .nav-link {
-      padding: 8px 16px;
-      border-radius: 8px;
-      transition: all 0.3s ease;
-      position: relative;
-      font-weight: 500;
-    }
-    .nav-link:hover {
-      background: rgba(79, 142, 247, 0.1);
-      color: #00D4FF;
-    }
-    .nav-active {
-      color: #00D4FF;
-      background: rgba(79, 142, 247, 0.2);
-      border: 1px solid rgba(79, 142, 247, 0.5);
-    }
-    .nav-active::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 3px;
-      background: linear-gradient(90deg, #4F8EF7, #00D4FF);
-      border-radius: 2px;
-    }
-    .shimmer-bg {
-      background: linear-gradient(90deg, #4F8EF7 0%, #00D4FF 50%, #4F8EF7 100%);
-      background-size: 200% 100%;
-    }
-    .stat-card {
-      position: relative;
-      overflow: hidden;
-    }
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-      transition: left 0.5s ease;
-    }
-    .stat-card:hover::before {
-      left: 100%;
-    }
-    .form-input {
-      background: rgba(10, 13, 26, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #E8EEFF;
-      transition: all 0.3s ease;
-    }
-    .form-input:focus {
-      border-color: #4F8EF7;
-      background: rgba(10, 13, 26, 0.95);
-      box-shadow: 0 0 12px rgba(79, 142, 247, 0.3);
-    }
-    .form-input::placeholder {
-      color: rgba(232, 238, 255, 0.5);
-    }
-    .btn-predict {
-      background: linear-gradient(135deg, #4F8EF7, #00D4FF);
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-    .btn-predict:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 24px rgba(79, 142, 247, 0.4);
-    }
-    .btn-predict:active {
-      transform: translateY(0);
-    }
-    .prediction-ring {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      width: 220px;
-      height: 220px;
-    }
-    .tab-content {
-      display: none;
-      opacity: 0;
-    }
-    .tab-content.active {
-      display: block;
-      animation: fadeInUp 0.6s ease-out forwards;
-      opacity: 1;
-    }
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-    /* Enhanced scrollbar */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: rgba(10, 13, 26, 0.5); }
-    ::-webkit-scrollbar-thumb { 
-      background: linear-gradient(180deg, #4F8EF7, #00D4FF);
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover { 
-      background: linear-gradient(180deg, #00D4FF, #4F8EF7);
-    }
-    /* Slider styling */
-    input[type="range"] {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      height: 6px;
-      border-radius: 3px;
-      background: linear-gradient(90deg, rgba(79, 142, 247, 0.5), rgba(0, 212, 255, 0.5));
-      outline: none;
-      cursor: pointer;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #4F8EF7, #00D4FF);
-      cursor: pointer;
-      box-shadow: 0 0 12px rgba(79, 142, 247, 0.6);
-      transition: all 0.3s ease;
-    }
-    input[type="range"]::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
-      box-shadow: 0 0 20px rgba(79, 142, 247, 0.8);
-    }
-    input[type="range"]::-moz-range-thumb {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #4F8EF7, #00D4FF);
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 12px rgba(79, 142, 247, 0.6);
-      transition: all 0.3s ease;
-    }
-  </style>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workshop Attendance Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="script.js"></script>
 </head>
-<body class="overflow-x-hidden">
-<!-- BEGIN: SplashScreen -->
-<div class="fixed inset-0 z-[100] bg-brand-base flex flex-col items-center justify-center overflow-hidden transition-opacity duration-700" id="splash">
-<!-- Animated Blobs -->
-<div class="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-600/20 rounded-full blur-[100px] animate-blob"></div>
-<div class="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-600/20 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
-<div class="absolute top-1/2 left-1/2 w-72 h-72 bg-purple-600/20 rounded-full blur-[100px] animate-blob animation-delay-4000"></div>
-<div class="relative z-10 flex flex-col items-center">
-<div class="text-6xl mb-6 animate-bounce">🎯</div>
-<h1 class="font-syne font-extrabold text-4xl gradient-text mb-4">Workshop Predictor</h1>
-<p class="font-mono text-brand-muted h-6 mb-8" id="splash-subtitle"></p>
-<div class="w-[360px] h-1.5 bg-white/5 rounded-full overflow-hidden">
-<div class="h-full w-0 shimmer-bg animate-shimmer" id="progress-bar"></div>
-</div>
-</div>
-</div>
-<!-- END: SplashScreen -->
-<!-- BEGIN: MainHeader -->
-<header class="fixed top-0 left-0 w-full h-16 z-50 bg-[#080b18]/95 backdrop-blur-3xl border-b border-brand-border flex items-center justify-between px-6 md:px-12 shadow-lg">
-<div class="flex items-center gap-3">
-<span class="text-2xl animate-pulse">🎯</span>
-<span class="font-syne font-bold text-xl tracking-tight hidden sm:block gradient-text">Workshop Predictor</span>
-</div>
-<nav class="hidden md:flex items-center gap-2 text-sm">
-<button class="nav-link nav-active" data-tab="hero">🏠 Predict</button>
-<button class="nav-link" data-tab="eda">📊 Visual EDA</button>
-<button class="nav-link" data-tab="nerds">🧠 Model Nerds</button>
-</nav>
-<div class="text-xs text-brand-muted text-right hidden lg:block">
-<p class="font-medium">Built by Rahul Purohit</p>
-<p class="opacity-75">School of Technology</p>
-</div>
-<!-- Mobile Menu Button -->
-<button class="md:hidden text-2xl" onclick="toggleMobileMenu()">☰</button>
-</header>
-<!-- END: MainHeader -->
-<main class="pt-16">
-<!-- BEGIN: HeroSection (Predict Page) -->
-<section class="tab-content active py-12 px-6 md:px-12" id="hero">
-<div class="max-w-7xl mx-auto">
-<div class="mb-12">
-<h1 class="font-syne font-extrabold text-4xl md:text-6xl gradient-text leading-tight mb-4">
-            Workshop Attendance <br/>Prediction
-          </h1>
-<p class="text-brand-muted max-w-2xl">Leverage machine learning to estimate student turnout based on historical patterns, promotional efforts, and academic schedules.</p>
-</div>
-<!-- Quick Stats Grid -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-<div class="glass stat-card p-6 rounded-2xl border-brand-border group hover:border-brand-blue/50 transition-all duration-300">
-<p class="text-brand-muted text-xs uppercase tracking-widest mb-2 font-semibold">Total Events</p>
-<h3 class="text-4xl font-syne font-bold text-brand-blue" id="statTotalEvents">-</h3>
-</div>
-<div class="glass stat-card p-6 rounded-2xl border-brand-border group hover:border-brand-blue/50 transition-all duration-300">
-<p class="text-brand-muted text-xs uppercase tracking-widest mb-2 font-semibold">Total Students</p>
-<h3 class="text-4xl font-syne font-bold text-brand-cyan" id="statTotalStudents">-</h3>
-</div>
-<div class="glass stat-card p-6 rounded-2xl border-brand-border group hover:border-brand-blue/50 transition-all duration-300">
-<p class="text-brand-muted text-xs uppercase tracking-widest mb-2 font-semibold">Registrations</p>
-<h3 class="text-4xl font-syne font-bold text-brand-coral" id="statRegistrations">-</h3>
-</div>
-<div class="glass stat-card p-6 rounded-2xl border-brand-border group hover:border-brand-blue/50 transition-all duration-300">
-<p class="text-brand-muted text-xs uppercase tracking-widest mb-2 font-semibold">Avg Attendance</p>
-<h3 class="text-4xl font-syne font-bold text-brand-cyan" id="statAvgAttendance">-</h3>
-</div>
-</div>
-<!-- Prediction UI -->
-<div class="grid lg:grid-cols-12 gap-8">
-<!-- Form -->
-<div class="lg:col-span-8 glass p-8 rounded-3xl">
-<form class="grid md:grid-cols-2 gap-6" id="predictionForm">
-<!-- Left Column -->
-<div class="space-y-6">
-<div>
-<label class="block text-sm font-semibold mb-2 text-brand-text">Workshop Topic</label>
-<select class="w-full form-input px-4 py-3 rounded-xl text-sm" id="topic">
-<option value="Data Science">Data Science</option>
-<option value="Machine Learning">Machine Learning</option>
-<option value="AI &amp; Deep Learning">AI &amp; Deep Learning</option>
-<option value="Web Development">Web Development</option>
-<option value="Cybersecurity">Cybersecurity</option>
-<option value="Cloud Computing">Cloud Computing</option>
-<option value="UI/UX Design">UI/UX Design</option>
-<option value="Career Guidance">Career Guidance</option>
-<option value="Entrepreneurship">Entrepreneurship</option>
-<option value="Digital Marketing">Digital Marketing</option>
-<option value="Product Management">Product Management</option>
-<option value="Music Production">Music Production</option>
-<option value="Sound Design">Sound Design</option>
-<option value="Creative Coding">Creative Coding</option>
-<option value="Design Thinking">Design Thinking</option>
-<option value="Branding &amp; Identity">Branding &amp; Identity</option>
-</select>
-</div>
-<div>
-<label class="block text-sm font-semibold mb-2 text-brand-text">Speaker Type</label>
-<select class="w-full form-input px-4 py-3 rounded-xl text-sm" id="speaker_type">
-<option value="Industry">Industry</option>
-<option value="Alumni">Alumni</option>
-<option value="Faculty">Faculty</option>
-<option value="Student">Student</option>
-</select>
-</div>
-<div class="grid grid-cols-2 gap-4">
-<div>
-<label class="block text-sm font-semibold mb-2 text-brand-text">Day</label>
-<select class="w-full form-input px-4 py-3 rounded-xl text-sm" id="day">
-<option value="Monday">Monday</option>
-<option value="Tuesday">Tuesday</option>
-<option value="Wednesday">Wednesday</option>
-<option value="Thursday">Thursday</option>
-<option value="Friday">Friday</option>
-<option value="Saturday">Saturday</option>
-<option value="Sunday">Sunday</option>
-</select>
-</div>
-<div>
-<label class="block text-sm font-semibold mb-2 text-brand-text">Time</label>
-<select class="w-full form-input px-4 py-3 rounded-xl text-sm" id="time">
-<option value="Morning (9-11 AM)">Morning (9-11 AM)</option>
-<option value="Afternoon (2-4 PM)">Afternoon (2-4 PM)</option>
-<option value="Evening (5-7 PM)">Evening (5-7 PM)</option>
-</select>
-</div>
-</div>
-<div>
-<label class="block text-sm font-semibold mb-2 text-brand-text">Event Date</label>
-<input class="w-full form-input px-4 py-3 rounded-xl text-sm" id="event_date" type="date"/>
-</div>
-</div>
-<!-- Right Column -->
-<div class="space-y-6">
-<div>
-<label class="block text-sm font-semibold mb-2 text-brand-text">Mode of Conduct</label>
-<select class="w-full form-input px-4 py-3 rounded-xl text-sm" id="mode">
-<option value="Offline">Offline</option>
-<option value="Online">Online</option>
-</select>
-</div>
-<div>
-<label class="block text-sm font-semibold mb-2 text-brand-text">Promotion Level</label>
-<select class="w-full form-input px-4 py-3 rounded-xl text-sm" id="promotion_level">
-<option value="Low">Low</option>
-<option value="Medium">Medium</option>
-<option value="High">High</option>
-</select>
-</div>
-<div>
-<div class="flex justify-between mb-2">
-<label class="text-sm font-medium text-brand-muted">Duration (mins)</label>
-<span class="text-brand-blue font-bold" id="durVal">90</span>
-</div>
-<input class="w-full accent-brand-blue" id="duration" max="180" min="30" step="15" type="range" value="90"/>
-</div>
-<div>
-<div class="flex justify-between mb-2">
-<label class="text-sm font-medium text-brand-muted">Expected Registrations</label>
-<span class="text-brand-blue font-bold" id="regVal">100</span>
-</div>
-<input class="w-full accent-brand-blue" id="registrations" max="200" min="10" step="10" type="range" value="100"/>
-</div>
-<div>
-<label class="block text-sm font-medium mb-2 text-brand-muted">Exam Proximity</label>
-<div class="flex gap-2">
-<button class="flex-1 py-2 px-3 rounded-lg border border-brand-border text-xs transition-colors hover:bg-white/5" id="exam-near" onclick="setExam('near')" type="button">Near</button>
-<button class="flex-1 py-2 px-3 rounded-lg border border-brand-border text-xs transition-colors hover:bg-white/5" id="exam-moderate" onclick="setExam('moderate')" type="button">Moderate</button>
-<button class="flex-1 py-2 px-3 rounded-lg border border-brand-blue bg-brand-blue/10 text-xs" id="exam-far" onclick="setExam('far')" type="button">Far</button>
-</div>
-<input id="exam_proximity" type="hidden" value="3"/>
-</div>
-</div>
-<div class="md:col-span-2 pt-4">
-<button class="btn-predict w-full h-14 text-white font-syne font-bold rounded-2xl flex items-center justify-center gap-3" id="predictBtn" type="submit">
-<span id="btnText">⚡ Predict Attendance</span>
-<div class="hidden w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" id="btnLoader"></div>
-</button>
-</div>
-</form>
-</div>
-<!-- Result Placeholder -->
-<div class="lg:col-span-4 flex flex-col gap-6">
-<div class="hidden glass p-8 rounded-3xl border-brand-blue/30 h-full flex flex-col items-center justify-center text-center" id="resultCard">
-<p class="text-brand-muted uppercase text-xs tracking-widest mb-4">Predicted Attendance</p>
-<div class="relative w-48 h-48 mb-6">
-<svg class="w-full h-full transform -rotate-90">
-<circle class="text-white/5" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" stroke-width="12"></circle>
-<circle class="text-brand-blue transition-all duration-1000 ease-out" cx="96" cy="96" fill="transparent" id="progressCircle" r="88" stroke="currentColor" stroke-dasharray="553" stroke-dashoffset="553" stroke-width="12"></circle>
-</svg>
-<div class="absolute inset-0 flex flex-col items-center justify-center">
-<span class="text-5xl font-syne font-extrabold" id="predictedCount">0</span>
-<span class="text-sm text-brand-muted" id="attendanceRate">0% Rate</span>
-</div>
-</div>
-<div class="bg-brand-blue/10 text-brand-blue px-4 py-1 rounded-full text-xs font-bold mb-6">
-                Confidence: <span id="confidence">88.4%</span>
-</div>
-<div class="w-full space-y-3">
-<p class="text-xs text-brand-muted text-left mb-2">Key Drivers:</p>
-<div class="flex items-center justify-between bg-white/5 p-3 rounded-xl">
-<span class="text-xs">Speaker Impact</span>
-<span class="text-brand-cyan text-xs font-bold">+15%</span>
-</div>
-<div class="flex items-center justify-between bg-white/5 p-3 rounded-xl">
-<span class="text-xs">Schedule Optimization</span>
-<span class="text-brand-cyan text-xs font-bold">+12%</span>
-</div>
-<div class="flex items-center justify-between bg-white/5 p-3 rounded-xl">
-<span class="text-xs">Exam Buffer</span>
-<span class="text-brand-cyan text-xs font-bold">+10%</span>
-</div>
-</div>
-</div>
-<!-- Empty State -->
-<div class="glass p-8 rounded-3xl border-dashed border-brand-border h-full flex flex-col items-center justify-center text-center" id="emptyResult">
-<div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-<span class="text-2xl">📉</span>
-</div>
-<h4 class="font-syne font-bold mb-2">Ready to Predict</h4>
-<p class="text-brand-muted text-sm">Fill in the workshop details and hit predict to see magic.</p>
-</div>
-</div>
-</div>
-<!-- Footer Stats Cards -->
-<div class="grid md:grid-cols-3 gap-6 mt-12">
-<div class="glass p-5 rounded-2xl flex items-center gap-4">
-<div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-500">✓</div>
-<div>
-<p class="text-[10px] text-brand-muted uppercase">Model Accuracy</p>
-<p class="text-lg font-bold" id="footerMetricAccuracy">-</p>
-</div>
-</div>
-<div class="glass p-5 rounded-2xl flex items-center gap-4">
-<div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">⚡</div>
-<div>
-<p class="text-[10px] text-brand-muted uppercase">F1 Score</p>
-<p class="text-lg font-bold" id="footerMetricF1">-</p>
-</div>
-</div>
-<div class="glass p-5 rounded-2xl flex items-center gap-4">
-<div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-500">⚙</div>
-<div>
-<p class="text-[10px] text-brand-muted uppercase">AUC-ROC</p>
-<p class="text-lg font-bold" id="footerMetricAuc">-</p>
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- END: HeroSection -->
-<!-- BEGIN: EDASection -->
-<section class="tab-content py-12 px-6 md:px-12" id="eda">
-<div class="max-w-7xl mx-auto">
-<div class="mb-12 text-center">
-<h2 class="font-syne font-extrabold text-4xl mb-4">Visual Exploratory Data Analysis</h2>
-<p class="text-brand-muted">Analyzing 2 years of workshop data to uncover hidden patterns.</p>
-</div>
-<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-<!-- Charts -->
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Attendance by Topic</h4>
-<canvas id="chartTopic"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Day of Week Performance</h4>
-<canvas id="chartDay"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Monthly Trend</h4>
-<canvas id="chartMonth"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Speaker Type Distribution</h4>
-<canvas id="chartSpeaker"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Online vs Offline</h4>
-<canvas id="chartMode"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Club Activity Impact</h4>
-<canvas id="chartClub"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Exam Proximity</h4>
-<canvas id="chartExam"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Department Distribution</h4>
-<canvas id="chartDept"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl h-[320px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Semester Participation</h4>
-<canvas id="chartSem"></canvas>
-</div>
-<div class="glass p-6 rounded-3xl md:col-span-2 xl:col-span-3 min-h-[400px]">
-<h4 class="text-xs font-bold text-brand-muted uppercase mb-4">Day &amp; Time Heatmap</h4>
-<div class="grid grid-cols-7 gap-2 mt-4" id="heatmap">
-<!-- Heatmap JS generated -->
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- END: EDASection -->
-<!-- BEGIN: NerdsSection -->
-<section class="tab-content py-12 px-6 md:px-12" id="nerds">
-<div class="max-w-7xl mx-auto">
-<div class="mb-12">
-<h2 class="font-syne font-extrabold text-4xl mb-4">Model Performance &amp; Nerdy Details</h2>
-<p class="text-brand-muted">For those who care about the math behind the magic.</p>
-</div>
-<div class="grid lg:grid-cols-3 gap-8">
-<!-- Left Column: Metrics -->
-<div class="lg:col-span-2 space-y-8">
-<div class="grid grid-cols-3 gap-6">
-<div class="glass p-8 rounded-3xl text-center">
-<h5 class="text-brand-blue text-4xl font-syne font-extrabold mb-1" id="nerdAccuracy">-</h5>
-<p class="text-brand-muted text-xs uppercase tracking-widest">Accuracy Score</p>
-</div>
-<div class="glass p-8 rounded-3xl text-center">
-<h5 class="text-brand-cyan text-4xl font-syne font-extrabold mb-1" id="nerdF1">-</h5>
-<p class="text-brand-muted text-xs uppercase tracking-widest">F1 Score</p>
-</div>
-<div class="glass p-8 rounded-3xl text-center">
-<h5 class="text-brand-coral text-4xl font-syne font-extrabold mb-1" id="nerdAuc">-</h5>
-<p class="text-brand-muted text-xs uppercase tracking-widest">AUC-ROC</p>
-</div>
-</div>
-<div class="glass p-8 rounded-3xl">
-<h4 class="font-syne font-bold mb-6 text-xl">Model Comparison</h4>
-<div class="overflow-x-auto">
-<table class="w-full text-left text-sm">
-<thead>
-<tr class="border-b border-brand-border text-brand-muted">
-<th class="pb-4 font-medium">Model Name</th>
-<th class="pb-4 font-medium">Accuracy</th>
-<th class="pb-4 font-medium">F1 Score</th>
-<th class="pb-4 font-medium">AUC-ROC</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-brand-border" id="modelComparisonBody">
-<tr class="group">
-<td class="py-4">Loading...</td>
-<td class="py-4">-</td>
-<td class="py-4">-</td>
-<td class="py-4">-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<div class="glass p-8 rounded-3xl">
-<h4 class="font-syne font-bold mb-6 text-xl">Optimization Insights</h4>
-<div class="grid md:grid-cols-2 gap-8">
-<div>
-<canvas id="radarChart"></canvas>
-</div>
-<div class="flex flex-col items-center justify-center">
-<!-- SVG Gauge -->
-<svg class="w-48 h-24 mb-4" viewbox="0 0 100 50">
-<path d="M10 50 A 40 40 0 0 1 90 50" fill="transparent" stroke="rgba(255,255,255,0.1)" stroke-width="8"></path>
-<path d="M10 50 A 40 40 0 0 1 52 14" fill="transparent" stroke="#4F8EF7" stroke-linecap="round" stroke-width="8"></path>
-<text fill="#E8EEFF" font-family="Syne" font-size="8" font-weight="800" id="nerdThreshold" text-anchor="middle" x="50" y="45">-</text>
-</svg>
-<p class="text-center text-sm font-bold">Optimized Probability Threshold</p>
-<p class="text-center text-xs text-brand-muted mt-2">Adjusted to maximize attendance recall vs registration volume.</p>
-</div>
-</div>
-</div>
-</div>
-<!-- Right Column: Accordion & Meta -->
-<div class="space-y-6">
-<div class="glass p-6 rounded-3xl">
-<h4 class="font-syne font-bold mb-4">Technical Logs</h4>
-<div class="space-y-4">
-<details class="group">
-<summary class="list-none flex justify-between items-center cursor-pointer p-4 bg-white/5 rounded-xl">
-<span class="text-sm font-bold">Hyperparameter Tuning</span>
-<span class="text-brand-blue transition-transform group-open:rotate-180">▼</span>
-</summary>
-<div class="p-4 text-xs text-brand-muted leading-relaxed">
-                    Used GridSearchCV with 5-fold cross validation. Penalty: l2, C: 1.0, Solver: lbfgs. Optimized for F1-macro to handle slight class imbalance.
-                  </div>
-</details>
-<details class="group">
-<summary class="list-none flex justify-between items-center cursor-pointer p-4 bg-white/5 rounded-xl">
-<span class="text-sm font-bold">Feature Engineering</span>
-<span class="text-brand-blue transition-transform group-open:rotate-180">▼</span>
-</summary>
-<div class="p-4 text-xs text-brand-muted leading-relaxed">
-                    Created 'Academic Weight' feature by combining semester load and exam proximity. Applied One-Hot Encoding to categorical topics.
-                  </div>
-</details>
-<details class="group">
-<summary class="list-none flex justify-between items-center cursor-pointer p-4 bg-white/5 rounded-xl">
-<span class="text-sm font-bold">Scaling Strategy</span>
-<span class="text-brand-blue transition-transform group-open:rotate-180">▼</span>
-</summary>
-<div class="p-4 text-xs text-brand-muted leading-relaxed">
-                    StandardScaler applied to registration counts and duration to ensure convergence in the Logistic Regression model.
-                  </div>
-</details>
-</div>
-</div>
-<div class="glass p-6 rounded-3xl">
-<h4 class="font-syne font-bold mb-4">Maintenance Schedule</h4>
-<div class="space-y-3">
-<div class="flex items-center gap-3 text-xs p-3 border-b border-brand-border">
-<span>🧹</span>
-<div class="flex-1">Data Scrubbing</div>
-<div class="text-brand-muted italic">Weekly</div>
-</div>
-<div class="flex items-center gap-3 text-xs p-3 border-b border-brand-border">
-<span>🔄</span>
-<div class="flex-1">Model Retraining</div>
-<div class="text-brand-muted italic">Monthly</div>
-</div>
-<div class="flex items-center gap-3 text-xs p-3 border-b border-brand-border">
-<span>📡</span>
-<div class="flex-1">API Integration</div>
-<div class="text-brand-muted italic">In Progress</div>
-</div>
-<div class="flex items-center gap-3 text-xs p-3 border-b border-brand-border">
-<span>🧪</span>
-<div class="flex-1">A/B Testing Mode</div>
-<div class="text-brand-blue font-bold">Active</div>
-</div>
-<div class="flex items-center gap-3 text-xs p-3 border-b border-brand-border">
-<span>🔒</span>
-<div class="flex-1">Security Patch</div>
-<div class="text-brand-muted italic">v1.0.4</div>
-</div>
-<div class="flex items-center gap-3 text-xs p-3">
-<span>📊</span>
-<div class="flex-1">Report Generation</div>
-<div class="text-brand-muted italic">Bi-Weekly</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- END: NerdsSection -->
-</main>
-<!-- BEGIN: MainFooter -->
-<footer class="py-12 px-6 text-center border-t border-brand-border text-brand-muted text-sm">
-<div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-<div class="flex items-center gap-2">
-<span class="text-xl">🎯</span>
-<span class="font-syne font-bold text-brand-text">Workshop Predictor v1.0</span>
-</div>
-<p>© 2023 Rahul Purohit | School of Technology. All Rights Reserved.</p>
-<div class="flex gap-4">
-<a class="hover:text-brand-blue transition-colors" href="#">GitHub</a>
-<a class="hover:text-brand-blue transition-colors" href="#">Documentation</a>
-</div>
-</div>
-</footer>
-<!-- END: MainFooter -->
-<script data-purpose="splash-logic">
-    document.addEventListener('DOMContentLoaded', () => {
-      const splash = document.getElementById('splash');
-      const progressBar = document.getElementById('progress-bar');
-      const subtitle = document.getElementById('splash-subtitle');
-      const text = "Loading ML-powered insights...";
-      let i = 0;
-
-      // Typewriter effect
-      const type = () => {
-        if (i < text.length) {
-          subtitle.innerHTML += text.charAt(i);
-          i++;
-          setTimeout(type, 50);
-        }
-      };
-      type();
-
-      // Progress bar animation
-      setTimeout(() => {
-        progressBar.style.width = '100%';
-        progressBar.style.transition = 'width 1.4s ease-in-out';
-      }, 100);
-
-      // Hide splash
-      setTimeout(() => {
-        splash.style.opacity = '0';
-        setTimeout(() => splash.remove(), 700);
-      }, 1800);
-    });
-  </script>
-<script data-purpose="tab-logic">
-    const navButtons = document.querySelectorAll('[data-tab]');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    navButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tabId = btn.getAttribute('data-tab');
-        
-        // Update active nav link
-        navButtons.forEach(b => b.classList.remove('nav-active'));
-        btn.classList.add('nav-active');
-
-        // Update active tab visibility
-        tabContents.forEach(content => {
-          content.classList.remove('active');
-          if (content.id === tabId) {
-            content.classList.add('active');
-          }
-        });
-
-        // Trigger chart re-render if necessary
-        if (tabId === 'eda') {
-          // Chart.js handles responsiveness well, but window resize helps refresh layout
-          window.dispatchEvent(new Event('resize'));
-        }
-      });
-    });
-  </script>
-<script data-purpose="prediction-logic">
-    const form = document.getElementById('predictionForm');
-    const durationInput = document.getElementById('duration');
-    const registrationsInput = document.getElementById('registrations');
-    const eventDateInput = document.getElementById('event_date');
-
-    function formatPct(value, digits = 1) {
-      return `${(Number(value) * 100).toFixed(digits)}%`;
-    }
-
-    async function apiRequest(path, options = {}) {
-      const response = await fetch(`/api${path}`, options);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || `Request failed: ${response.status}`);
-      }
-      return payload;
-    }
-
-    function setSelectOptions(selectId, values) {
-      const select = document.getElementById(selectId);
-      if (!select || !Array.isArray(values) || values.length === 0) {
-        return;
-      }
-      const currentValue = select.value;
-      select.innerHTML = '';
-      values.forEach((value) => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value;
-        select.appendChild(option);
-      });
-
-      if (values.includes(currentValue)) {
-        select.value = currentValue;
-      }
-    }
-
-    function setText(id, value) {
-      const node = document.getElementById(id);
-      if (node) {
-        node.textContent = value;
-      }
-    }
-
-    function toDisplayName(modelName) {
-      return modelName
-        .split('_')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-    }
-
-    function updateModelComparison(comparison, winner) {
-      const tbody = document.getElementById('modelComparisonBody');
-      if (!tbody || !comparison) {
-        return;
-      }
-
-      const order = ['xgboost', 'random_forest', 'logistic_regression'];
-      tbody.innerHTML = '';
-
-      order.forEach((name) => {
-        if (!comparison[name] || typeof comparison[name] !== 'object') {
-          return;
-        }
-
-        const metrics = comparison[name];
-        const row = document.createElement('tr');
-        row.className = name === winner ? 'bg-brand-blue/10' : 'group';
-
-        const modelLabel = name === winner
-          ? `${toDisplayName(name)} (Winner)`
-          : toDisplayName(name);
-
-        row.innerHTML = `
-          <td class="py-4 ${name === winner ? 'pl-4 rounded-l-xl font-bold' : ''}">${modelLabel}</td>
-          <td class="py-4 ${name === winner ? 'font-bold' : ''}">${Number(metrics.accuracy || 0).toFixed(3)}</td>
-          <td class="py-4 ${name === winner ? 'font-bold' : ''}">${Number(metrics.f1_score || 0).toFixed(3)}</td>
-          <td class="py-4 ${name === winner ? 'font-bold rounded-r-xl' : ''}">${Number(metrics.auc_roc || 0).toFixed(3)}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    function updateOverviewCards(overview) {
-      setText('statTotalEvents', String(overview.total_events ?? '-'));
-      setText('statTotalStudents', String(overview.total_students ?? '-'));
-      setText('statRegistrations', Number(overview.registrations || 0).toLocaleString());
-      setText('statAvgAttendance', formatPct(overview.avg_attendance || 0));
-
-      const model = overview.model || {};
-      const metrics = model.metrics || {};
-
-      setText('footerMetricAccuracy', Number(metrics.accuracy || 0).toFixed(3));
-      setText('footerMetricF1', Number(metrics.f1_score || 0).toFixed(3));
-      setText('footerMetricAuc', Number(metrics.auc_roc || 0).toFixed(3));
-
-      setText('nerdAccuracy', Number(metrics.accuracy || 0).toFixed(3));
-      setText('nerdF1', Number(metrics.f1_score || 0).toFixed(3));
-      setText('nerdAuc', Number(metrics.auc_roc || 0).toFixed(3));
-      setText('nerdThreshold', Number(model.threshold || 0.5).toFixed(2));
-
-      updateModelComparison(model.comparison || {}, model.winner || '');
-    }
-
-    function setExam(type) {
-      const near = document.getElementById('exam-near');
-      const moderate = document.getElementById('exam-moderate');
-      const far = document.getElementById('exam-far');
-      const input = document.getElementById('exam_proximity');
-
-      [near, moderate, far].forEach((btn) => {
-        btn.classList.remove('bg-brand-blue/10', 'border-brand-blue');
-        btn.classList.add('border-brand-border');
-      });
-
-      if (type === 'near') {
-        near.classList.add('bg-brand-blue/10', 'border-brand-blue');
-        input.value = '1';
-      } else if (type === 'moderate') {
-        moderate.classList.add('bg-brand-blue/10', 'border-brand-blue');
-        input.value = '2';
-      } else {
-        far.classList.add('bg-brand-blue/10', 'border-brand-blue');
-        input.value = '3';
-      }
-    }
-
-    window.setExam = setExam;
-
-    async function initializeDashboard() {
-      if (eventDateInput && !eventDateInput.value) {
-        eventDateInput.value = new Date().toISOString().slice(0, 10);
-      }
-
-      durationInput.addEventListener('input', (e) => {
-        document.getElementById('durVal').innerText = e.target.value;
-      });
-      registrationsInput.addEventListener('input', (e) => {
-        document.getElementById('regVal').innerText = e.target.value;
-      });
-
-      try {
-        const [overview, options] = await Promise.all([
-          apiRequest('/overview'),
-          apiRequest('/options'),
-        ]);
-
-        updateOverviewCards(overview);
-        setSelectOptions('topic', options.topics || []);
-        setSelectOptions('speaker_type', options.speaker_types || []);
-        setSelectOptions('day', options.days || []);
-        setSelectOptions('time', options.time_slots || []);
-        setSelectOptions('mode', options.modes || []);
-        setSelectOptions('promotion_level', options.promotion_levels || []);
-      } catch (err) {
-        console.error('Failed to initialize dashboard data:', err);
-      }
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const btn = document.getElementById('predictBtn');
-      const btnText = document.getElementById('btnText');
-      const loader = document.getElementById('btnLoader');
-      const empty = document.getElementById('emptyResult');
-      const card = document.getElementById('resultCard');
-
-      btnText.classList.add('opacity-0');
-      loader.classList.remove('hidden');
-      btn.disabled = true;
-
-      try {
-        const payload = {
-          topic: document.getElementById('topic').value,
-          speaker_type: document.getElementById('speaker_type').value,
-          day_of_week: document.getElementById('day').value,
-          time_slot: document.getElementById('time').value,
-          mode: document.getElementById('mode').value,
-          promotion_level: document.getElementById('promotion_level').value,
-          duration_minutes: parseInt(durationInput.value, 10),
-          num_registrations: parseInt(registrationsInput.value, 10),
-          exam_proximity: parseInt(document.getElementById('exam_proximity').value, 10),
-          event_date: (eventDateInput && eventDateInput.value) || new Date().toISOString().slice(0, 10),
-        };
-
-        const result = await apiRequest('/predict', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        const ratePercent = Number(result.attendance_rate || 0) * 100;
-        document.getElementById('predictedCount').innerText = String(result.predicted_attendees || 0);
-        document.getElementById('attendanceRate').innerText = `${ratePercent.toFixed(1)}% Rate`;
-
-        const probability = Number(result.avg_probability || 0) * 100;
-        document.getElementById('confidence').innerText = `${result.confidence || 'Medium'} (${probability.toFixed(1)}%)`;
-
-        const circle = document.getElementById('progressCircle');
-        const dashOffset = 553 - (553 * ratePercent / 100);
-        circle.style.strokeDashoffset = dashOffset;
-
-        empty.classList.add('hidden');
-        card.classList.remove('hidden');
-        card.classList.add('animate-in', 'fade-in', 'slide-in-from-bottom-4', 'duration-500');
-      } catch (err) {
-        console.error('Prediction failed:', err);
-        alert('Prediction failed. Start the backend with: python api_server.py');
-      } finally {
-        btnText.classList.remove('opacity-0');
-        loader.classList.add('hidden');
-        btn.disabled = false;
-      }
-    });
-
-    initializeDashboard();
-  </script>
-<script data-purpose="charts-logic">
-    Chart.defaults.color = '#6B7A99';
-    Chart.defaults.font.family = 'DM Sans';
-
-    const dayShortLabel = {
-      Monday: 'Mon',
-      Tuesday: 'Tue',
-      Wednesday: 'Wed',
-      Thursday: 'Thu',
-      Friday: 'Fri',
-      Saturday: 'Sat',
-      Sunday: 'Sun',
-    };
-
-    function toPercentSeries(values) {
-      return (values || []).map((value) => Number(value) * 100);
-    }
-
-    function shortDay(day) {
-      return dayShortLabel[day] || day;
-    }
-
-    const chartOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
-        x: { grid: { display: false }, border: { display: false } },
-      },
-    };
-
-    function renderHeatmap(heatmapPayload) {
-      const heatmap = document.getElementById('heatmap');
-      if (!heatmap) {
-        return;
-      }
-
-      heatmap.innerHTML = '';
-      const days = heatmapPayload.days || [];
-      const slots = heatmapPayload.slots || [];
-      const matrix = heatmapPayload.matrix || [];
-
-      days.forEach((day, dayIdx) => {
-        const col = document.createElement('div');
-        col.className = 'flex flex-col gap-2';
-
-        const label = document.createElement('div');
-        label.className = 'text-[10px] text-center mb-1 text-brand-muted';
-        label.innerText = shortDay(day);
-        col.appendChild(label);
-
-        slots.forEach((slot, slotIdx) => {
-          const rate = Number((matrix[dayIdx] || [])[slotIdx] || 0);
-          const cell = document.createElement('div');
-          const alpha = 0.12 + Math.min(0.88, rate * 0.88);
-          cell.className = 'h-10 rounded-md transition-all hover:scale-105 cursor-pointer';
-          cell.style.backgroundColor = `rgba(79, 142, 247, ${alpha.toFixed(3)})`;
-          cell.title = `${day} • ${slot}: ${(rate * 100).toFixed(1)}%`;
-          col.appendChild(cell);
-        });
-
-        heatmap.appendChild(col);
-      });
-    }
-
-    async function loadAndRenderCharts() {
-      try {
-        const [chartsResponse, overviewResponse] = await Promise.all([
-          fetch('/api/charts'),
-          fetch('/api/overview'),
-        ]);
-
-        const charts = await chartsResponse.json();
-        const overview = await overviewResponse.json();
-
-        if (!chartsResponse.ok) {
-          throw new Error(charts.error || 'Failed to load chart data');
-        }
-
-        const topicLabels = charts.topic.labels || [];
-        const topicRates = toPercentSeries(charts.topic.rates || []);
-        new Chart(document.getElementById('chartTopic'), {
-          type: 'bar',
-          data: {
-            labels: topicLabels,
-            datasets: [{
-              data: topicRates,
-              backgroundColor: '#4F8EF7',
-              borderRadius: 8,
-            }],
-          },
-          options: { ...chartOptions, indexAxis: 'y' },
-        });
-
-        const dayLabels = (charts.day.labels || []).map(shortDay);
-        new Chart(document.getElementById('chartDay'), {
-          type: 'bar',
-          data: {
-            labels: dayLabels,
-            datasets: [{
-              data: toPercentSeries(charts.day.rates || []),
-              backgroundColor: '#00D4FF',
-              borderRadius: 8,
-            }],
-          },
-          options: chartOptions,
-        });
-
-        new Chart(document.getElementById('chartMonth'), {
-          type: 'line',
-          data: {
-            labels: charts.monthly.labels || [],
-            datasets: [
-              {
-                label: 'Registrations',
-                data: charts.monthly.registrations || [],
-                borderColor: '#4F8EF7',
-                borderWidth: 2,
-                tension: 0.35,
-                yAxisID: 'y',
-              },
-              {
-                label: 'Attendance Rate %',
-                data: toPercentSeries(charts.monthly.rates || []),
-                borderColor: '#FF6B9D',
-                borderWidth: 2,
-                tension: 0.35,
-                yAxisID: 'y1',
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                type: 'linear',
-                position: 'left',
-                grid: { color: 'rgba(255,255,255,0.05)' },
-                border: { display: false },
-              },
-              y1: {
-                type: 'linear',
-                position: 'right',
-                min: 0,
-                max: 100,
-                grid: { drawOnChartArea: false },
-                border: { display: false },
-              },
-              x: {
-                grid: { display: false },
-                border: { display: false },
-              },
-            },
-          },
-        });
-
-        new Chart(document.getElementById('chartSpeaker'), {
-          type: 'bar',
-          data: {
-            labels: charts.speaker.labels || [],
-            datasets: [{
-              data: toPercentSeries(charts.speaker.rates || []),
-              backgroundColor: ['#4F8EF7', '#6B7A99', '#00D4FF', '#FF6B9D'],
-              borderRadius: 8,
-            }],
-          },
-          options: { ...chartOptions, indexAxis: 'y' },
-        });
-
-        new Chart(document.getElementById('chartMode'), {
-          type: 'bar',
-          data: {
-            labels: charts.mode.labels || [],
-            datasets: [{
-              data: toPercentSeries(charts.mode.rates || []),
-              backgroundColor: '#4F8EF7',
-              borderRadius: 8,
-            }],
-          },
-          options: chartOptions,
-        });
-
-        new Chart(document.getElementById('chartClub'), {
-          type: 'bar',
-          data: {
-            labels: charts.club.labels || [],
-            datasets: [{
-              data: toPercentSeries(charts.club.rates || []),
-              backgroundColor: ['#FF6B9D', '#00D4FF', '#4F8EF7'],
-              borderRadius: 8,
-            }],
-          },
-          options: chartOptions,
-        });
-
-        const examLabels = (charts.exam.labels || []).map((value) => {
-          if (Number(value) === 1) return 'Near';
-          if (Number(value) === 2) return 'Moderate';
-          return 'Far';
-        });
-        new Chart(document.getElementById('chartExam'), {
-          type: 'bar',
-          data: {
-            labels: examLabels,
-            datasets: [{
-              data: toPercentSeries(charts.exam.rates || []),
-              backgroundColor: ['#FF6B9D', '#00D4FF', '#4F8EF7'],
-              borderRadius: 8,
-            }],
-          },
-          options: chartOptions,
-        });
-
-        new Chart(document.getElementById('chartDept'), {
-          type: 'bar',
-          data: {
-            labels: charts.department.labels || [],
-            datasets: [{
-              data: toPercentSeries(charts.department.rates || []),
-              backgroundColor: '#4F8EF7',
-              borderRadius: 8,
-            }],
-          },
-          options: { ...chartOptions, indexAxis: 'y' },
-        });
-
-        new Chart(document.getElementById('chartSem'), {
-          type: 'bar',
-          data: {
-            labels: charts.semester.labels || [],
-            datasets: [{
-              data: toPercentSeries(charts.semester.rates || []),
-              backgroundColor: '#FF6B9D',
-              borderRadius: 8,
-            }],
-          },
-          options: chartOptions,
-        });
-
-        const modelMetrics = (overview.model || {}).metrics || {};
-        new Chart(document.getElementById('radarChart'), {
-          type: 'radar',
-          data: {
-            labels: ['Accuracy', 'F1', 'AUC', 'Calibration', 'Stability', 'Speed'],
-            datasets: [{
-              label: 'Active Model',
-              data: [
-                Number(modelMetrics.accuracy || 0) * 100,
-                Number(modelMetrics.f1_score || 0) * 100,
-                Number(modelMetrics.auc_roc || 0) * 100,
-                Number(modelMetrics.auc_roc || 0) * 95,
-                Number(modelMetrics.f1_score || 0) * 92,
-                88,
-              ],
-              borderColor: '#4F8EF7',
-              backgroundColor: 'rgba(79, 142, 247, 0.2)',
-              pointBackgroundColor: '#4F8EF7',
-            }],
-          },
-          options: {
-            scales: {
-              r: {
-                grid: { color: 'rgba(255,255,255,0.05)' },
-                angleLines: { color: 'rgba(255,255,255,0.05)' },
-                pointLabels: { color: '#6B7A99' },
-                ticks: { display: false },
-                min: 0,
-                max: 100,
-              },
-            },
-            plugins: { legend: { display: false } },
-          },
-        });
-
-        renderHeatmap(charts.heatmap || {});
-      } catch (err) {
-        console.error('Failed to load chart data:', err);
-      }
-    }
-
-    loadAndRenderCharts();
-  </script>
-<script data-purpose="ui-interactions">
-    function toggleMobileMenu() {
-      alert("Mobile menu functionality would open a tray here.");
-    }
-  </script>
-</body></html>
+<body>
+  <div id="splash" class="splash">
+    <div class="splash-card">
+      <p class="splash-tag">ML Planning Engine</p>
+      <h1>Workshop Attendance Predictor</h1>
+      <p id="splashText" class="splash-subtitle">Booting live data, charts, and model diagnostics...</p>
+      <div class="splash-track"><div id="splashBar" class="splash-bar"></div></div>
+    </div>
+  </div>
+
+  <div class="background-layer">
+    <span class="orb orb-a"></span>
+    <span class="orb orb-b"></span>
+    <span class="orb orb-c"></span>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">WP</div>
+      <div>
+        <p class="brand-title">Workshop Predictor</p>
+        <p class="brand-sub">Attendance planning dashboard</p>
+      </div>
+    </div>
+
+    <button id="mobileMenuButton" class="mobile-menu-button" aria-label="Open tabs">Tabs</button>
+
+    <nav id="desktopTabs" class="tabs desktop-tabs" aria-label="Main tabs">
+      <button class="tab-button is-active" data-tab="predict">Predict Attendance</button>
+      <button class="tab-button" data-tab="eda">Visual EDA</button>
+      <button class="tab-button" data-tab="nerd">Model Nerd Page</button>
+    </nav>
+  </header>
+
+  <nav id="mobileTabs" class="tabs mobile-tabs hidden" aria-label="Mobile tabs">
+    <button class="tab-button is-active" data-tab="predict">Predict Attendance</button>
+    <button class="tab-button" data-tab="eda">Visual EDA</button>
+    <button class="tab-button" data-tab="nerd">Model Nerd Page</button>
+  </nav>
+
+  <main class="shell">
+    <section id="predict" class="tab-panel is-active">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">Main Screen</p>
+          <h2>Predict Workshop Attendance Before You Schedule</h2>
+          <p class="lead">Configure workshop details, run prediction on the real trained model, and get planning guidance.</p>
+        </div>
+        <div class="status-wrap">
+          <span id="apiHealthBadge" class="status-badge">Checking API...</span>
+          <span id="updatedAt" class="updated-at">Updated now</span>
+        </div>
+      </div>
+
+      <div class="metrics-grid four">
+        <article class="metric-card">
+          <p>Total Events</p>
+          <h3 id="predictTotalEvents">-</h3>
+        </article>
+        <article class="metric-card">
+          <p>Total Students</p>
+          <h3 id="predictTotalStudents">-</h3>
+        </article>
+        <article class="metric-card">
+          <p>Registrations</p>
+          <h3 id="predictRegistrations">-</h3>
+        </article>
+        <article class="metric-card">
+          <p>Avg Attendance</p>
+          <h3 id="predictAvgAttendance">-</h3>
+        </article>
+      </div>
+
+      <div class="grid-2 predict-layout">
+        <article class="panel">
+          <h3 class="panel-title">Prediction Inputs</h3>
+          <form id="predictionForm" class="form-grid">
+            <label>
+              Workshop Topic
+              <select id="topicInput"></select>
+            </label>
+            <label>
+              Speaker Type
+              <select id="speakerTypeInput"></select>
+            </label>
+            <label>
+              Day of Week
+              <select id="dayInput"></select>
+            </label>
+            <label>
+              Time Slot
+              <select id="timeSlotInput"></select>
+            </label>
+            <label>
+              Event Date
+              <input id="eventDateInput" type="date" />
+            </label>
+            <label>
+              Mode
+              <select id="modeInput"></select>
+            </label>
+            <label>
+              Promotion Level
+              <select id="promotionLevelInput"></select>
+            </label>
+
+            <label class="slider-label">
+              Duration (minutes)
+              <div class="slider-meta"><span>30</span><strong id="durationValue">90</strong><span>240</span></div>
+              <input id="durationInput" type="range" min="30" max="240" step="30" value="90" />
+            </label>
+
+            <label class="slider-label">
+              Expected Registrations
+              <div class="slider-meta"><span>10</span><strong id="registrationsValue">50</strong><span>200</span></div>
+              <input id="registrationsInput" type="range" min="10" max="200" step="10" value="50" />
+            </label>
+
+            <div class="exam-group">
+              <p>Exam Proximity</p>
+              <div class="exam-toggle">
+                <button type="button" class="exam-button" data-exam="1">Near</button>
+                <button type="button" class="exam-button is-active" data-exam="2">Moderate</button>
+                <button type="button" class="exam-button" data-exam="3">Far</button>
+              </div>
+              <input type="hidden" id="examProximityInput" value="2" />
+            </div>
+
+            <button id="predictButton" class="predict-button" type="submit">
+              <span id="predictButtonText">Predict Attendance</span>
+              <span id="predictLoader" class="button-loader hidden"></span>
+            </button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <h3 class="panel-title">Prediction Result</h3>
+          <div id="predictionEmpty" class="empty-state">
+            <p>Run a prediction to see turnout estimate, confidence, and recommendation.</p>
+          </div>
+
+          <div id="predictionResult" class="hidden">
+            <div class="ring-box">
+              <svg class="progress-ring" viewBox="0 0 240 240">
+                <circle class="ring-track" cx="120" cy="120" r="86"></circle>
+                <circle id="predictionRing" class="ring-progress" cx="120" cy="120" r="86"></circle>
+              </svg>
+              <div class="ring-content">
+                <p id="ringPercent">0%</p>
+                <span>Predicted Rate</span>
+              </div>
+            </div>
+
+            <div class="metrics-grid two compact">
+              <article class="metric-card"><p>Registered</p><h3 id="resultRegistered">-</h3></article>
+              <article class="metric-card"><p>Predicted Attendees</p><h3 id="resultAttendees">-</h3></article>
+              <article class="metric-card"><p>Rate</p><h3 id="resultRate">-</h3></article>
+              <article class="metric-card"><p>Confidence</p><h3 id="resultConfidence">-</h3></article>
+            </div>
+
+            <p id="resultProbability" class="note neutral">Average model probability: -</p>
+            <p id="resultAdvice" class="note">-</p>
+            <p id="historicalReference" class="historical">-</p>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel model-snapshot">
+        <div>
+          <p class="eyebrow">Active Model Snapshot</p>
+          <h3 id="snapshotModel">-</h3>
+        </div>
+        <div class="snapshot-metrics">
+          <div>
+            <p>Accuracy</p>
+            <strong id="snapshotAccuracy">-</strong>
+          </div>
+          <div>
+            <p>F1 Score</p>
+            <strong id="snapshotF1">-</strong>
+          </div>
+          <div>
+            <p>AUC-ROC</p>
+            <strong id="snapshotAuc">-</strong>
+          </div>
+          <div>
+            <p>Threshold</p>
+            <strong id="snapshotThreshold">-</strong>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section id="eda" class="tab-panel">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">Visual EDA</p>
+          <h2>Historical Attendance Patterns and Behavioral Drivers</h2>
+          <p class="lead">Interactive view of trend lines, distribution shifts, and schedule-performance interaction.</p>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <article class="panel chart-panel"><h3 class="panel-title">Attendance by Topic</h3><div class="chart-holder"><canvas id="chartTopic"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Day of Week Performance</h3><div class="chart-holder"><canvas id="chartDay"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Monthly Registrations vs Rate</h3><div class="chart-holder tall"><canvas id="chartMonth"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Speaker Type Impact</h3><div class="chart-holder"><canvas id="chartSpeaker"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Online vs Offline</h3><div class="chart-holder"><canvas id="chartMode"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Club Activity Impact</h3><div class="chart-holder"><canvas id="chartClub"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Exam Proximity Effect</h3><div class="chart-holder"><canvas id="chartExam"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Department Comparison</h3><div class="chart-holder"><canvas id="chartDept"></canvas></div></article>
+        <article class="panel chart-panel"><h3 class="panel-title">Semester Participation</h3><div class="chart-holder"><canvas id="chartSemester"></canvas></div></article>
+      </div>
+
+      <article class="panel">
+        <h3 class="panel-title">Day x Time Slot Heatmap</h3>
+        <p class="panel-note">Shows interaction effect between schedule day and time slot.</p>
+        <div id="heatmapGrid" class="heatmap-grid"></div>
+      </article>
+    </section>
+
+    <section id="nerd" class="tab-panel">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">Model Nerd Page</p>
+          <h2>Model Performance, Maintenance, and Q&A Explanations</h2>
+          <p class="lead">Same context as Streamlit model section: metrics, comparison, timeline, and practical ML Q&A.</p>
+        </div>
+      </div>
+
+      <div class="metrics-grid six">
+        <article class="metric-card"><p>Winner Model</p><h3 id="nerdWinnerModel">-</h3></article>
+        <article class="metric-card"><p>Accuracy</p><h3 id="nerdAccuracy">-</h3></article>
+        <article class="metric-card"><p>F1 Score</p><h3 id="nerdF1">-</h3></article>
+        <article class="metric-card"><p>AUC-ROC</p><h3 id="nerdAuc">-</h3></article>
+        <article class="metric-card"><p>Threshold</p><h3 id="nerdThreshold">-</h3></article>
+        <article class="metric-card"><p>Feature Count</p><h3 id="nerdFeatureCount">-</h3></article>
+      </div>
+
+      <div class="grid-2">
+        <article class="panel chart-panel">
+          <h3 class="panel-title">Model Performance Comparison</h3>
+          <div class="chart-holder"><canvas id="chartModelComparison"></canvas></div>
+        </article>
+        <article class="panel chart-panel">
+          <h3 class="panel-title">Winner Model Metric Profile</h3>
+          <div class="chart-holder"><canvas id="chartModelRadar"></canvas></div>
+        </article>
+      </div>
+
+      <div class="grid-2">
+        <article class="panel">
+          <h3 class="panel-title">Comparison Table</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Accuracy</th>
+                  <th>F1 Score</th>
+                  <th>AUC-ROC</th>
+                  <th>Threshold</th>
+                </tr>
+              </thead>
+              <tbody id="modelComparisonBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h3 class="panel-title">Top Engineered Features</h3>
+          <ul id="topFeaturesList" class="feature-list"></ul>
+        </article>
+      </div>
+
+      <div class="grid-2">
+        <article class="panel">
+          <h3 class="panel-title">Updation and Maintenance Timelines</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase</th>
+                  <th>Frequency</th>
+                  <th>Trigger</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="maintenanceTimelineBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h3 class="panel-title">Retraining History</h3>
+          <pre id="retrainHistory" class="log-box">No retraining attempts yet.</pre>
+        </article>
+      </div>
+
+      <article class="panel">
+        <h3 class="panel-title">Model Q&A (Context from Streamlit)</h3>
+        <div class="qa-stack">
+          <details>
+            <summary>Model Types and Why They Were Chosen</summary>
+            <div class="qa-content">
+              <p><strong>Logistic Regression:</strong> linear baseline, fast, interpretable, and validates whether feature engineering has strong signal.</p>
+              <p><strong>Random Forest:</strong> bagging ensemble for non-linear patterns and reduced variance through parallel trees.</p>
+              <p><strong>XGBoost:</strong> boosting ensemble for sequential error correction and stronger bias reduction on structured data.</p>
+              <p>These three represent linear, bagging, and boosting families, covering the core classifier spectrum without unnecessary model sprawl.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>Threshold Optimization and Metrics Explained</summary>
+            <div class="qa-content">
+              <p>The model outputs probabilities, then a threshold converts them into attend or no-show predictions.</p>
+              <p>Instead of fixed 0.5, threshold is optimized using F1 score so precision and recall stay balanced for planning decisions.</p>
+              <p><strong>F1</strong> is primary because attendance data can be imbalanced. <strong>AUC-ROC</strong> measures ranking quality, while raw accuracy alone can be misleading.</p>
+              <p>Cross-validation and threshold sweep are used to reduce split luck and improve deployment reliability.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>Multicollinearity and Feature Strategy</summary>
+            <div class="qa-content">
+              <p>Engineered features may be correlated by design, especially derived indicators.</p>
+              <p>Tree models tolerate this well and can down-weight noisy or redundant features. Logistic regression is kept mainly as a baseline rather than sole interpretability source.</p>
+              <p>The strategy is to offer rich signal and let model families identify what matters most, then monitor drift through scheduled audits and retraining.</p>
+            </div>
+          </details>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+</body>
+</html>
