@@ -48,6 +48,12 @@ docker compose ps
 docker compose logs -f
 ```
 
+If ports `80` or `443` are already in use on the host, start the stack on alternate ports:
+
+```bash
+HTTP_PORT=8080 HTTPS_PORT=8443 docker compose up -d --build
+```
+
 ### 3. Access Your Application
 
 Since your domain is proxied through Cloudflare:
@@ -153,6 +159,12 @@ docker compose logs nginx
 # Check if ports are already in use
 sudo netstat -tulpn | grep :80
 sudo netstat -tulpn | grep :443
+```
+
+If those ports are occupied and you cannot stop the existing service, run the app on alternate host ports instead:
+
+```bash
+HTTP_PORT=8080 HTTPS_PORT=8443 docker compose up -d --build
 ```
 
 ### Can't access the application

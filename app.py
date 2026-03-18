@@ -1002,38 +1002,127 @@ elif page == "⚙️  Model Performance":
         
         # how it works
         st.markdown("---")
-        st.markdown("### 💡 How the Model Works")
+        st.markdown("### 💡 How the Models Work")
         
-        with st.expander("Click to learn about the models", expanded=False):
-            st.markdown(f"""
-            **3 Models Trained & Compared:**
-            
-            | Model | Type | Key Idea |
-            |-------|------|----------|
-            | **XGBoost** | Gradient Boosting | Builds trees sequentially — each tree corrects mistakes from previous ones |
-            | **Random Forest** | Bagging | Builds trees independently and averages them — robust but less precise |
-            | **Logistic Regression** | Linear Model | Fits a linear decision boundary — baseline to prove non-linear patterns exist |
-            
-            **Why XGBoost usually wins on our data:**
-            - `scale_pos_weight` handles class imbalance natively
-            - Captures complex feature interactions (topic × time × student history)
-            - Built-in L1/L2 regularization prevents overfitting on {len(df):,} rows
-            - Sequential error correction beats independent averaging
-            
-            **The winner is selected by F1 Score** (not accuracy), because accuracy
-            is misleading on imbalanced data.
-            """)
-            
+        with st.expander("🧠 Model Types & Why We Chose Them", expanded=False):
             st.markdown("""
+            We use **3 models from 3 different classifier families** — Linear, Bagging, and Boosting — to compare diverse approaches on the same data.
+            
             ---
-            **Evaluation Metrics:**
-            | Metric | What it measures |
-            |--------|------------------|
-            | **F1 Score** | Balance between precision & recall *(primary metric)* |
-            | **AUC-ROC** | How well the model separates attendees from no-shows |
-            | **Precision** | Of those predicted to attend, how many actually did |
-            | **Recall** | Of those who attended, how many did we predict correctly |
-            | **Accuracy** | Overall correctness *(misleading with imbalanced data)* |
+            
+            **1. Logistic Regression — Linear Classifier (Baseline)**
+            
+            | Aspect | Detail |
+            |--------|--------|
+            | **Family** | Generalized Linear Model |
+            | **How it works** | Uses a **sigmoid function** to map inputs to a probability (0–1). Learns one straight decision boundary. |
+            | **Why we use it** | Acts as a **baseline** — if a simple linear model scores well, it proves the feature engineering is strong. |
+            | **Key settings** | `StandardScaler` (LR needs all features on the same scale), `class_weight='balanced'` (handles imbalance) |
+            | **Strength** | Fast, interpretable, each feature has a coefficient showing impact direction |
+            
+            > In our case, **LR actually wins** (highest F1) — this proves our 69 engineered features carry such strong signal that a linear model is enough.
+            
+            ---
+            
+            **2. Random Forest — Bagging Ensemble**
+            
+            | Aspect | Detail |
+            |--------|--------|
+            | **Family** | Bootstrap Aggregating (Bagging) |
+            | **How it works** | Trains **100 independent** decision trees, each on a random sample of data + random features. Final prediction by **majority vote**. |
+            | **Why we use it** | Captures non-linear relationships (e.g., "exam week + late registration = low attendance"), resistant to overfitting |
+            | **Key settings** | `max_features='sqrt'` (each split sees √n features → decorrelates trees), `class_weight='balanced'` |
+            | **Strength** | Doesn't need feature scaling, handles mixed feature types well |
+            
+            > **Bagging** = trees are **independent & parallel** → errors cancel by averaging → **reduces variance (overfitting)**
+            
+            ---
+            
+            **3. XGBoost — Boosting Ensemble**
+            
+            | Aspect | Detail |
+            |--------|--------|
+            | **Family** | Gradient Boosting |
+            | **How it works** | Builds trees **sequentially** — each new tree corrects the **mistakes** of the previous one by optimizing the gradient of the loss function. |
+            | **Why we use it** | Industry standard for tabular data. Built-in L1/L2 regularization, native imbalance handling via `scale_pos_weight`. |
+            | **Key settings** | `scale_pos_weight = count(neg) / count(pos)`, `learning_rate` controls each tree's contribution |
+            | **Strength** | Typically strongest on structured data, captures complex interactions |
+            
+            > **Boosting** = trees are **sequential & dependent** → each fixes previous errors → **reduces bias (underfitting)**
+            
+            ---
+            
+            **Bagging vs Boosting — Key Difference:**
+            
+            | | Bagging (Random Forest) | Boosting (XGBoost) |
+            |---|---|---|
+            | Trees | Independent, trained in **parallel** | Sequential, each **corrects previous** |
+            | Goal | Reduce **variance** (overfitting) | Reduce **bias** (underfitting) |
+            | Overfitting risk | Low | Higher (needs regularization) |
+            
+            ---
+            
+            **Why only 3 models? Why not deep learning?**
+            - These 3 cover **all major classifier families** (linear, bagging, boosting) — adding more is redundant
+            - Deep learning needs **thousands to millions** of rows; we have ~3,900
+            - All 3 output **probabilities** (required for threshold optimization)
+            - All 3 support **feature importance** analysis shown on this page
+            """)
+        
+        with st.expander("🎯 Threshold Optimization & Metrics Explained", expanded=False):
+            st.markdown("""
+            **What is Threshold Optimization?**
+            
+            Every model outputs a **probability** (e.g., 0.37 = 37% chance of attending). 
+            By default, if probability > 0.5 → predict "will attend". But **0.5 is arbitrary**.
+            
+            We **sweep thresholds from 0.10 to 0.60** and pick the one that maximizes **F1 score** for each model.
+            Each model gets its own optimal threshold because their probability distributions differ:
+            - XGBoost might output 0.35 for an attendee
+            - LR might output 0.45 for the same student
+            
+            The raw probability scale is model-specific — not a universal confidence number.
+            
+            ---
+            
+            **Why F1 Score, not Accuracy?**
+            
+            If 60% of students don't attend, a model that **always predicts "not attending"** gets 60% accuracy — but is useless.
+            
+            **F1 = Harmonic Mean of Precision & Recall** — it balances both:
+            
+            | Metric | What it measures | Why it matters |
+            |--------|-----------------|----------------|
+            | **Precision** | Of predicted attendees, how many actually came? | Avoid over-booking (false positives waste resources) |
+            | **Recall** | Of actual attendees, how many did we catch? | Avoid under-preparing (false negatives = empty seats) |
+            | **F1 Score** | Balance of precision & recall | **Primary metric** — both errors have real costs |
+            | **AUC-ROC** | How well model separates attend vs no-show | Overall ranking quality (threshold-independent) |
+            | **Accuracy** | Overall correct predictions | Misleading with imbalanced data |
+            
+            ---
+            
+            **What is SMOTE?**
+            
+            **Synthetic Minority Oversampling Technique** — creates synthetic samples of the minority class 
+            by interpolating between existing data points. Applied only when minority class < 35%.
+            In our current data (~44% attended), SMOTE is **skipped** — already balanced enough.
+            
+            ---
+            
+            **What is 5-Fold Cross-Validation?**
+            
+            Instead of one train-test split (which might be lucky), we split data into **5 parts**.
+            Train on 4, test on the 5th. Repeat 5 times. Report the **mean F1** — this ensures 
+            the model generalizes and isn't just memorizing one split.
+            
+            ---
+            
+            **Why does Logistic Regression beat XGBoost here?**
+            
+            When **feature engineering is strong**, a simple model wins. Our 69 features already encode 
+            the key patterns (school-topic affinity, student streaks, exam pressure). Once the signal 
+            is clear and linear-separable, LR doesn't need boosting's extra complexity.
+            **Good features > complex models.**
             """)
         
         with st.expander("🔬 Multicollinearity & Feature Strategy", expanded=False):
