@@ -22,11 +22,11 @@ COPY . .
 # Create necessary directories if they don't exist
 RUN mkdir -p data models
 
-# Expose Streamlit default port
-EXPOSE 8501
+# Expose API server port
+EXPOSE 8000
 
 # Health check
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8000/api/health || exit 1
 
-# Run Streamlit app
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"]
+# Run API + static frontend server
+CMD ["python3", "api_server.py", "--host", "0.0.0.0", "--port", "8000"]

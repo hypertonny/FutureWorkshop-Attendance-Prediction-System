@@ -83,10 +83,10 @@ if [ "$(docker compose ps -q streamlit)" ] && [ "$(docker compose ps -q nginx)" 
     # Test health check
     echo -e "${YELLOW}Testing application health...${NC}"
     sleep 5
-    if curl -f http://localhost:8501/_stcore/health &> /dev/null; then
-        echo -e "${GREEN}✅ Streamlit is healthy${NC}"
+    if curl -f http://localhost/api/health &> /dev/null; then
+        echo -e "${GREEN}✅ API + Frontend server is healthy${NC}"
     else
-        echo -e "${YELLOW}⚠️  Streamlit health check pending (this is normal on first start)${NC}"
+        echo -e "${YELLOW}⚠️  API health check pending (this is normal on first start)${NC}"
     fi
     echo ""
     
@@ -100,7 +100,7 @@ if [ "$(docker compose ps -q streamlit)" ] && [ "$(docker compose ps -q nginx)" 
     echo -e "   (via Cloudflare HTTPS proxy)"
     echo ""
     echo -e "Local access:"
-    echo -e "   http://localhost:8501"
+    echo -e "   http://localhost"
     echo ""
     echo -e "Useful commands:"
     echo -e "   ${YELLOW}View logs:${NC}       docker compose logs -f"

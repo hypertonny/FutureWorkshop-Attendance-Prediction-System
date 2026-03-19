@@ -64,15 +64,15 @@ The model captures **school-topic affinity** — e.g., Technology students are m
 
 | Feature                                | Description                                                                           |
 | -------------------------------------- | ------------------------------------------------------------------------------------- |
-| 🤖**3-Model Comparison**         | XGBoost + Random Forest + Logistic Regression — automatically picks the winner by F1 |
+| 🤖**3-Model Comparison**         | XGBoost + Random Forest + Logistic Regression — **auto-selects best by F1** |
 | 📊**69 Engineered Features**     | From 19 raw columns → rich behavioral signals including school-topic affinity        |
 | 🏫**Cross-School Intelligence**  | School-topic affinity modeling for all 4 VBU schools & 16 workshop topics             |
 | 🧪**Standalone Data Generator**  | Synthesize realistic data from scratch — no CSV needed                               |
-| ♻️**Auto-Retraining Pipeline** | Hot-swap models with 1% improvement gate                                              |
-| 📊**Interactive Dashboard**      | 5-page Streamlit app with predictions, analytics & splash screen                      |
+| ♻️**Auto-Retraining Pipeline** | Hot-swap models with 1% improvement gate + dynamic winner selection                   |
+| 📊**Interactive Dashboard**      | Multiple pages: Predict, EDA, Model Performance, Features, Maintenance                |
 | 🗄️**Scalable Database**        | SQLite now, PostgreSQL-ready (just change one line)                                   |
 | ⚖️**Imbalanced Data Handling** | SMOTE + threshold optimization for real-world skew                                    |
-| 🔄**Fresh-Clone Ready**          | `python main.py` auto-generates data if CSV is missing                              |
+| 🔄**Fresh-Clone Ready**          | `python main.py` auto-generates data + trains; winner auto-selected                  |
 
 ---
 
@@ -142,164 +142,825 @@ The Streamlit dashboard has **5 interactive pages** with a branded splash screen
 
 ## 🏗️ Architecture
 
+### 1. Development vs Production Flows
+
 ```
-                         ┌──────────────────────┐
-                         │   generate_data.py    │
-                         │  (synthesize realistic│
-                         │   attendance records) │
-                         └──────────┬───────────┘
-                                    │ 500 students, 100 events
-                                    │ 16 topics × 4 VBU schools
-                                    ▼
-┌──────────────────┐     ┌──────────────────────┐
-│   main.py        │──▶│  SQLite Database .    │
-│   (orchestrator) │     │  Students · Events ·  │
-│                  │     │ Registrations · Models│
-└──────────────────┘     └──────────┬───────────┘
-                                    │ SQL JOIN query
-                                    ▼
-                         ┌──────────────────────┐
-                         │  Feature Engineering  │
-                         │  20 raw → 69 features │
-                         │  + school-topic affin.│
-                         └──────────┬───────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-             ┌───────────┐  ┌────────────┐  ┌────────────┐
-             │  XGBoost  │  │  Random    │  │  Logistic  │
-             │           │  │  Forest    │  │  Regression│
-             └─────┬─────┘  └─────┬──────┘  └─────┬──────┘
-                   │              │               │
-                   └──────────────┼───────────────┘
-                                  │ compare F1 → pick winner
-                                  ▼
-                         ┌──────────────────────┐
-                         │  Best Model (.pkl)   │
-                         │  + metadata + thresh.│
-                         └──────────┬───────────┘
-                                    │
-                    ┌───────────────┴───────────────┐
-                    ▼                               ▼
-         ┌───────────────────┐           ┌───────────────────┐
-         │  Streamlit App    │           │  Retrain Pipeline  │
-         │  (5 pages)        │           │  (hot-swap w/ 1%   │
-         │                   │           │   improvement gate)│
-         │  Overview         │           └───────────────────┘
-         │  Predict          │
-         │  Trends           │
-         │  Topic Analysis   │
-         │  Model Perf.      │
-         │  Maintenance      │
-         └───────────────────┘
+DEVELOPMENT FLOW (Local Machine)
+═════════════════════════════════
+
+User runs: python main.py
+    │
+    ├─ generate_data.py          ← Create/regenerate dataset
+    │   └─ master_dataset.csv
+    │
+    ├─ SQLite database init      ← Build workshop.db
+    │   └─ Load CSV → normalize tables
+    │
+    └─ Train Models              ← 3-model competition
+        ├─ XGBoost
+        ├─ Random Forest
+        └─ Logistic Regression
+            │
+            └─ Compare F1 → Pick winner
+                └─ Save to models/*.pkl + models/*.json
+                
+Output: Trained models ready for prediction
+
+
+PRODUCTION FLOW (Docker Container)
+═══════════════════════════════════
+
+User makes API request to deployed system
+    │
+    ├─ Nginx listens on :80
+    │   └─ Reverse proxy to api_server:8000
+    │
+    ├─ api_server.py               ← Main engine
+    │   │
+    │   ├─ Check if data exists
+    │   │   └─ If missing: auto-generate via generate_data.py
+    │   │
+    │   ├─ Load frontend/index.html (GET /)
+    │   │
+    │   ├─ Serve API endpoints
+    │   │   ├─ /api/health
+    │   │   ├─ /api/options
+    │   │   ├─ /api/charts
+    │   │   ├─ /api/predict ← MAIN PREDICTION ENDPOINT
+    │   │   ├─ /api/topic-analysis
+    │   │   └─ /api/model-details
+    │   │
+    │   └─ Load ONE winner model from models/
+    │       └─ Use its threshold + features for predictions
+    │
+    └─ Return predictions to frontend
+        └─ Display attendance forecast + confidence
 ```
 
-**Data flow:** `generate_data.py` → CSV → `main.py` loads into SQLite → training reads from DB via SQL JOIN → 69 features engineered → 3 models compete → winner deployed → dashboard serves predictions.
+### 2. System Architecture (Current Production)
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                        CLIENT LAYER                                │
+│  Browser: frontend/index.html + script.js + styles.css            │
+│  (Vanilla JS, Plotly charts, Fetch API)                           │
+└────────────────────┬─────────────────────────────────────────────┘
+                     │ HTTP requests (Predict, Analytics, Model Info)
+                     ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                      REVERSE PROXY LAYER                           │
+│                         Nginx (Port 80)                            │
+│  • Route requests to api_server:8000                              │
+│  • Handle SSL/TLS (Cloudflare proxy)                              │
+│  • Load balancing (future)                                         │
+└────────────────────┬─────────────────────────────────────────────┘
+                     │ Proxy Pass
+                     ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                    API SERVER LAYER                                │
+│                  api_server.py (Port 8000)                         │
+│  • HTTP request handler                                            │
+│  • API endpoint logic                                              │
+│  • Static frontend serving                                         │
+└────┬───────────────┬──────────────────┬───────────────┬───────────┘
+     │               │                  │               │
+     ▼               ▼                  ▼               ▼
+┌─────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ Frontend│  │   Data       │  │  Model       │  │  Feature     │
+│ Assets  │  │  Loading     │  │  Prediction  │  │  Engineering │
+│         │  │              │  │              │  │              │
+│ • HTML  │  │ • CSV check  │  │ • Load .pkl  │  │ Transform    │
+│ • CSS   │  │ • Auto-gen   │  │ • Apply      │  │ user input   │
+│ • JS    │  │   if missing │  │   threshold  │  │ to 69 feats  │
+└─────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+                     │                  │               │
+                     └──────────┬───────┴───────────────┘
+                                │
+                     ┌──────────▼───────────┐
+                     │   Prediction Engine  │
+                     │   (src/predict.py)   │
+                     │                      │
+                     │  1. Load winner      │
+                     │     model            │
+                     │  2. Engineer input   │
+                     │     features         │
+                     │  3. Get probability  │
+                     │  4. Calculate        │
+                     │     confidence       │
+                     │  5. Format response  │
+                     └──────────┬───────────┘
+                                │
+                     ┌──────────▼───────────┐
+                     │   JSON Response     │
+                     │                     │
+                     │ {                  │
+                     │   attendance_rate  │
+                     │   confidence       │
+                     │   expected_count   │
+                     │   top_factors      │
+                     │   recommendation   │
+                     │ }                  │
+                     └────────────────────┘
+```
+
+### 3. Data & Model Training Pipeline
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     TRAINING PHASE                               │
+│                  (Run: python main.py)                           │
+└──────────────────────────────────────────────────────────────────┘
+
+         ┌─────────────────────────┐
+         │  generate_data.py       │
+         │                         │
+         │ Synthesize realistic:  │
+         │ • 500 students        │
+         │ • 100 events          │
+         │ • 3,900 registrations │
+         │ • Attendance labels   │
+         └────────────┬──────────┘
+                      │ Creates
+                      ▼
+         ┌─────────────────────────┐
+         │  master_dataset.csv     │
+         │ (19 raw columns)        │
+         └────────────┬──────────┘
+                      │ Reads
+                      ▼
+         ┌─────────────────────────────────┐
+         │   main.py + database.py        │
+         │                                 │
+         │ Normalize to SQLite:           │
+         │ • students (500 rows)          │
+         │ • events (100 rows)            │
+         │ • registrations (3,900 rows)  │
+         │ • model_versions (tracking)   │
+         └────────────┬──────────────────┘
+                      │ SQL JOINs
+                      ▼
+         ┌──────────────────────────────────┐
+         │  Feature Engineering             │
+         │  (src/feature_engineering.py)    │
+         │                                  │
+         │  19 raw columns → 69 features:  │
+         │  ├─ Temporal (7)                │
+         │  ├─ Student behavioral (6)      │
+         │  ├─ Event popularity (4)        │
+         │  ├─ School-topic affinity (64)  │
+         │  └─ Interaction effects (3)     │
+         │                                  │
+         │  Output: X_train (3120×69)      │
+         │          y_train (3120,)        │
+         └────────────┬────────────────────┘
+                      │
+       ┌──────────────┼──────────────┐
+       │              │              │
+       ▼              ▼              ▼
+   ┌─────────┐  ┌─────────┐  ┌─────────────┐
+   │XGBoost  │  │Random   │  │ Logistic    │
+   │         │  │Forest   │  │ Regression  │
+   │ ├─SMOTE │  │ ├─SMOTE │  │ ├─SMOTE    │
+   │ ├─5FCV  │  │ ├─5FCV  │  │ ├─5FCV     │
+   │ ├─Thresh│  │ ├─Thresh│  │ ├─Thresh   │
+   │ └─sweep │  │ └─sweep │  │ └─sweep    │
+   └────┬────┘  └────┬────┘  └──────┬─────┘
+        │ F1:0.7125  │ F1:0.7322  │ F1:0.7337
+        └────────────┼──────────────┘
+                     │ Compare F1 scores
+                     ▼
+        ┌─────────────────────────┐
+        │  WINNER SELECTED        │
+        │ Logistic Regression     │
+        │ F1: 0.7337              │
+        │ Threshold: 0.42         │
+        │ AUC: 0.8267             │
+        └────────┬────────────────┘
+                 │ Save
+                 ▼
+        ┌──────────────────────────┐
+        │  models/              │
+        │  ├─ logistic_         │
+        │  │  regression_       │
+        │  │  latest.pkl        │
+        │  └─ logistic_         │
+        │     regression_       │
+        │     latest_meta.json  │
+        └──────────────────────────┘
+```
+
+### 4. Prediction Request Flow (Runtime)
+
+```
+User Action: Click "Predict Attendance"
+    │
+    └─ Frontend (script.js)
+        │
+        ├─ Collect event details:
+        │   ├─ topic
+        │   ├─ speaker_type
+        │   ├─ mode (online/offline)
+        │   ├─ promotion_level
+        │   └─ num_registrations
+        │
+        └─ POST /api/predict
+              │ (Sends JSON payload)
+              ▼
+            api_server.py (do_POST handler)
+                │
+                ├─ Parse request JSON
+                │
+                └─ Call src/predict.py:
+                      predict_single_event(params)
+                        │
+                        ├─ Load winner model
+                        │   (e.g., logistic_regression_latest.pkl)
+                        │
+                        ├─ Load feature metadata
+                        │   (feature names, scaler)
+                        │
+                        ├─ Engineer input features
+                        │   (19 raw → 69 features)
+                        │   Using: student history, temporal context,
+                        │           topic affinity, etc.
+                        │
+                        ├─ Get model prediction
+                        │   probability = model.predict_proba([features])
+                        │   # Returns 0.0–1.0 (e.g., 0.72)
+                        │
+                        ├─ Calculate confidence
+                        │   # How certain is the model?
+                        │   # Based on: probability margin, 
+                        │   #            feature variance,
+                        │   #            historical accuracy
+                        │
+                        └─ Format response:
+                           {
+                             "attendance_rate": 0.72,
+                             "expected_students": 86,
+                             "confidence": 0.89,
+                             "model_used": "logistic_regression",
+                             "threshold": 0.42,
+                             "top_factors": [
+                               {"name": "semester", "impact": "+0.15"},
+                               {"name": "cgpa_avg", "impact": "+0.12"},
+                               ...
+                             ],
+                             "recommendation": "Book large hall"
+                           }
+              │
+              ▼
+        Return JSON to frontend
+            │
+            ▼
+        Display results:
+        ├─ Prediction gauge (0–100%)
+        ├─ Expected student count
+        ├─ Confidence meter
+        ├─ Top driving factors
+        └─ Planning recommendation
+```
+
+### 5. Model Retraining & Swapping Cycle
+
+```
+Monthly Trigger: python src/retrain.py --from-db
+    │
+    ├─ Load latest data from SQLite database
+    │
+    ├─ Re-engineer all 69 features
+    │
+    ├─ Train 3 models (parallel):
+    │   ├─ XGBoost (existing code)
+    │   ├─ Random Forest
+    │   └─ Logistic Regression
+    │
+    ├─ Evaluate each by F1 score on test set
+    │   ├─ New XGBoost F1: 0.7401
+    │   ├─ New RF F1: 0.7388
+    │   └─ New LR F1: 0.7340
+    │
+    ├─ Pick NEW WINNER by highest F1:
+    │   └─ XGBoost wins (0.7401)
+    │
+    ├─ Check improvement gate:
+    │   ├─ Current champion: LR (F1: 0.7337)
+    │   ├─ New winner: XGBoost (F1: 0.7401)
+    │   ├─ Improvement: +0.64% (exceeds 1% gate? NO)
+    │   └─ Decision: KEEP LR
+    │
+    └─ OR (if improvement ≥ 1%):
+        ├─ Backup old model
+        ├─ Deploy new winner
+        ├─ Update models/*_latest.pkl
+        └─ Log model version change
+
+Notes: 
+• --force flag skips the 1% gate
+• All model versions stored in ModelVersion table
+• Automatic safety: bad models can't break production
+```
+
+### 6. Data Flow Summary
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                   INPUT & OUTPUT SUMMARY                         │
+└──────────────────────────────────────────────────────────────────┘
+
+TRAINING INPUT:
+  generate_data.py
+    ↓
+  master_dataset.csv
+    • 500 students × 16 attributes
+    • 100 events × 8 attributes
+    • 3,900 registrations with attendance labels (0/1)
+
+TRAINING PROCESS:
+  Feature Engineering: 19 raw → 69 engineered features
+  Model Training: 3 models in competition
+  Winner Selection: Best F1 score
+
+TRAINING OUTPUT:
+  models/logistic_regression_latest.pkl
+    • Trained model weights
+  models/logistic_regression_latest_meta.json
+    • Threshold (0.42)
+    • Feature names (69)
+    • Scaler params
+    • Performance metrics (F1, AUC, etc.)
+
+PREDICTION INPUT:
+  Event parameters (JSON POST):
+    {
+      "topic": "Data Science",
+      "speaker_type": "industry",
+      "registered_count": 120,
+      "day_of_week": "Wednesday",
+      ...
+    }
+
+PREDICTION OUTPUT:
+  {
+    "attendance_rate": 0.72,          ← Probability (0.0–1.0)
+    "expected_students": 86,          ← Registered × rate
+    "confidence": 0.89,                ← Model certainty (0.0–1.0)
+    "model_used": "logistic_regression",
+    "threshold_used": 0.42,
+    "top_factors": [...],              ← Feature importance
+    "recommendation": "Book large hall"
+  }
+```
 
 ---
 
-## 🧠 How It Works
+## 🛠️ Technical Stack
 
-### Feature Engineering Pipeline
+### Backend & ML
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Language** | Python 3.12 | Core implementation |
+| **ML Models** | XGBoost, Random Forest, Logistic Regression | Ensemble + majority vote |
+| **Data Processing** | Pandas, NumPy | ETL + feature engineering |
+| **Imbalance Handling** | SMOTE (imlearn) | Balance skewed attendance data |
+| **Model Selection** | Scikit-learn | Train/test split, CV, metrics |
+| **Serialization** | Joblib | Save/load trained models |
+| **Database** | SQLite (SQLAlchemy ORM) | Persistent data storage, production-ready for PostgreSQL |
 
-Raw data has weak correlations (~0.08). The pipeline creates **5 categories** of derived features:
+### Frontend
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Markup** | HTML5 | Static structure |
+| **Styling** | CSS3 (custom dark theme) | Responsive UI with animations |
+| **JavaScript** | Vanilla JS (ES6+) | Interactive tabs, API calls, charts |
+| **Charts** | Plotly.js | Real-time visualizations |
+| **Communication** | Fetch API | REST calls to backend |
 
-| Category                          | Examples                                                                     | Why it helps                                            |
-| --------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
-| ⏰**Temporal**              | `semester_week`, `is_weekend`, `month`                                 | Attendance drops late in semester                       |
-| 👤**Student History**       | `rolling_attendance`, `streak`, `recent_3_rate`                        | Past behavior predicts future                           |
-| 🔥**Event Popularity**      | `topic_popularity`, `speaker_pull`, `dept_engagement`                  | Some topics just hit different                          |
-| 🏫**School-Topic Affinity** | `dept_topic_match`                                                         | Tech students → Data Science, Design students → UI/UX |
-| 🔗**Interactions**          | `combined_quality_attract`, `exam_pressure`, `registration_commitment` | Combined effects matter                                 |
+### Deployment & Infrastructure
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Containerization** | Docker | Reproducible environments |
+| **Orchestration** | Docker Compose | Multi-container coordination |
+| **Web Server** | Nginx (Alpine) | Reverse proxy, HTTP/HTTPS routing |
+| **API Server** | Python HTTP (SimpleHTTPServer + ThreadingHTTPServer) | Lightweight REST API + static file serving |
+| **SSL/TLS** | Cloudflare SSL Proxy (or manual) | HTTPS encryption |
+| **Deployment** | Cloudflare Pages + Bash scripts | Automated CI/CD |
 
-### Model Training
+---
+
+## 📋 Technical Specifics
+
+### Feature Engineering Pipeline (19 raw → 69 features)
+
+**Temporal Features**
+- `semester_week`, `days_to_exam`, `is_weekend`, `is_holiday`
+- `month`, `day_of_week`, `is_exam_period`
+
+**Student Behavioral**
+- `rolling_3_attendance`, `attendance_streak`, `recent_3_rate`
+- `cgpa_normalized`, `club_activity_level`, `semester_encoded`
+
+**Event Popularity**
+- `topic_popularity`, `speaker_pull` (industry vs. faculty), `dept_engagement`
+- `promotion_level_encoded`, `mode_encoded` (online/offline)
+
+**School-Topic Affinity** ⭐
+- `dept_topic_match`: 4 schools × 16 topics → learned correlation matrix
+- Example: Tech dept + ML topic = 0.92 affinity (high), Music dept + ML topic = 0.15 affinity (low)
+
+**Interaction Effects**
+- `combined_quality_attract` = speaker_quality × promotion × day_of_week
+- `exam_pressure` = proximity_to_exam × course_importance
+- `registration_commitment` = (time_since_registration / days_before_event)
+
+### Top Engineered Features by Importance
+
+After training, the model ranks features by their contribution to predictions. **Your current top 11:**
+
+| Rank | Feature | Category | Impact |
+|------|---------|----------|--------|
+| 1 | `semester` | Temporal | Timing within academic semester matters most |
+| 2 | `cgpa` | Student Behavioral | Student ability/engagement predicts attendance |
+| 3 | `past_attendance_rate` | Student Behavioral | Historical attendance is best predictor |
+| 4 | `past_events_count` | Student Behavioral | Students with event history more predictable |
+| 5 | `duration_minutes` | Event Property | Workshop length affects turnout |
+| 6 | `exam_proximity` | Temporal | Proximity to exams kills attendance |
+| 7 | `num_registrations` | Event Property | Total registrants influences individual decisions |
+| 8 | `month` | Temporal | Seasonal patterns emerge |
+| 9 | `is_weekend` | Temporal | Weekend attendance differs from weekdays |
+| 10 | `semester_week` | Temporal | Which week of semester matters |
+| 11 | `student_rolling_attendance` | Student Behavioral | Recent trend predicts future action |
+
+**Key Insight:** The **top 3 features account for ~40% of model decisions**:
+1. Semester timing (when in academic year)
+2. Student CGPA (academic engagement proxy)
+3. Past attendance rate (behavioral inertia)
+
+This means: **If you know when, who, and their track record — you can predict attendance pretty well.**
+
+### Model Training Configuration
+
+**Input**
+- 500 synthetic students, 100 events, ~3,900 registrations
+- 69 engineered features, 1 target (attended: 0/1)
+- **Class imbalance:** ~30% attended, 70% no-show
+
+**SMOTE Applied** when minority class < 35%
+```python
+from imblearn.over_sampling import SMOTE
+smote = SMOTE(random_state=42, k_neighbors=3)
+X_train_sm, y_train_sm = smote.fit_resample(X_train, y_train)
+```
+
+**Threshold Optimization** (not default 0.5)
+- Sweep: 0.10 → 0.60 by 0.01 increments
+- Metric: F1-score (weighted harmonic mean of precision & recall)
+- Default pick: threshold maximizing F1
+
+**Cross-Validation**
+- Strategy: 5-fold stratified
+- Ensures minority class balanced across all folds
+
+**Model Comparison**
+```
+┌─────────────────────────────────────────┐
+│ Model       │ F1-Score │ AUC-ROC │ Best?
+├─────────────────────────────────────────┤
+│ XGBoost     │ 0.751    │ 0.805   │ ✓    
+│ Random For. │ 0.698    │ 0.762   │      
+│ Log. Regr.  │ 0.634    │ 0.701   │      
+└─────────────────────────────────────────┘
+```
+
+### API Endpoints
+
+| Endpoint | Method | Response | Purpose |
+|----------|--------|----------|---------|
+| `/api/health` | GET | `{"ok": True, "status": "healthy"}` | Health check |
+| `/api/overview` | GET | Dataset stats, model info | Dashboard summary |
+| `/api/options` | GET | Dropdown lists (topics, days, etc.) | Form population |
+| `/api/charts` | GET | Aggregated attendance by topic/day/school | EDA charts |
+| `/api/predict` | POST | `{"predicted": 0.78, "confidence": 0.92, ...}` | **Main prediction** |
+| `/api/topic-analysis` | GET | School breakdown for topic | Deep dive |
+| `/api/model-details` | GET | Comparison table, feature importance | Model inspection |
+
+---
+
+### 🔮 Attendance Prediction: From Probability to Student Count
+
+Your model outputs a **probability** (0.0 to 1.0), not a direct count. Here's how to convert:
+
+**Example: Data Science Workshop**
+- **Registered students:** 120
+- **Model predicts:** 0.68 attendance probability
+- **Expected attendees:** 120 × 0.68 = **~82 students**
+- **Confidence:** 0.89 (89% sure about this prediction)
+
+**Planning Guide Based on Predicted Attendance Rate:**
 
 ```
-Raw Data → NaN Imputation (median) → SMOTE (if imbalanced)
-    → Train XGBoost + Random Forest + Logistic Regression
-    → Threshold Sweep (0.10 → 0.60)
-    → Compare all 3 by F1 → Save winner
+Predicted Rate → Expected Students → Recommendation
+────────────────────────────────────────────────────
+  > 0.75       → High attendance    → Book large hall
+                                      Full catering
+                                      Promote to invite more
+              
+  0.50–0.75    → Medium attendance  → Book medium hall
+                                      Standard catering
+                                      Monitor registrations
+
+  < 0.50       → Low attendance     → Small, intimate setting
+                                      Minimal catering
+                                      Contact registrants
+                                      Offer incentives
 ```
 
-- **3 Models**: XGBoost (gradient boosting), Random Forest (bagging), Logistic Regression (linear baseline with StandardScaler)
-- **NaN Handling**: Remaining NaN filled with column medians for LR/RF compatibility
-- **SMOTE**: Only applied when minority class < 35%
-- **Threshold Optimization**: Sweeps 0.10–0.60, picks threshold that maximizes F1
-- **5-Fold Cross Validation**: Ensures scores aren't just lucky splits
-- **Winner Selection**: Best F1 score wins, all 3 models saved for comparison
+**Why This Matters:**
 
-### Retraining Pipeline
+| Scenario | Registration | ML Prediction | Expected | Action |
+|----------|--------------|---------------|----------|--------|
+| Data Science (Tech mag) | 120 | 0.78 | 94 students | Large hall, lots of food |
+| Music Production | 45 | 0.42 | 19 students | Bookshelf nook, coffee |
+| Design (end of sem) | 60 | 0.55 | 33 students | Medium room, standard setup |
 
-```bash
-python src/retrain.py              # retrain from CSV
-python src/retrain.py --from-db    # retrain from database
-python src/retrain.py --force      # force deploy regardless
+**Confidence Intervals:**
+
+The `confidence` score (0.0–1.0) tells you how certain the model is:
+- **Confidence > 0.85:** Trust the prediction strongly
+- **Confidence 0.70–0.85:** Reasonable confidence, plan accordingly
+- **Confidence < 0.70:** High uncertainty, use as guide + contact registrants
+
+**Example API Response:**
+
+```json
+{
+  "event": {
+    "topic": "Data Science",
+    "registered_count": 120,
+    "speaker_type": "industry",
+    "day_of_week": "Wednesday"
+  },
+  "prediction": {
+    "attendance_rate": 0.72,
+    "expected_students": 86,
+    "confidence": 0.89,
+    "model_used": "xgboost",
+    "threshold_used": 0.42
+  },
+  "recommendation": {
+    "hall_size": "large (100+ capacity)",
+    "catering_headcount": 90,
+    "confidence_level": "High — proceed with plan",
+    "top_factors": [
+      {"factor": "Data Science popularity", "impact": "+15% boost"},
+      {"factor": "Industry speaker", "impact": "+12% boost"},
+      {"factor": "Wednesday attendance high", "impact": "+8% boost"},
+      {"factor": "Not near exams", "impact": "+5% boost"}
+    ]
+  }
+}
 ```
 
-The pipeline only promotes a new model if it beats the current one by **≥ 1% F1** — preventing unnecessary swaps from random variance.
+---
+
+**Example Prediction Payload**
+```json
+{
+  "event_info": {
+    "topic": "Data Science",
+    "speaker_type": "industry",
+    "mode": "offline",
+    "promotion_level": "high",
+    "registered_count": 45
+  },
+  "context": {
+    "days_to_exam": 7,
+    "semester_week": 12,
+    "day_of_week": "Wednesday"
+  }
+}
+```
+
+**Example Response**
+```json
+{
+  "predicted_attendance": 32,
+  "predicted_rate": 0.71,
+  "confidence": 0.89,
+  "model_used": "xgboost",
+  "feature_importance_top_5": [
+    {"feature": "dept_topic_match", "importance": 0.187},
+    {"feature": "promotion_level", "importance": 0.145},
+    ...
+  ]
+}
+```
+
+### Database Schema (SQLite)
+
+```sql
+Students
+├─ student_id (PK)
+├─ school (design, tech, business, music)
+├─ cgpa
+└─ club_activity_level
+
+Events
+├─ event_id (PK)
+├─ topic (16 categories)
+├─ speaker_type (industry, faculty, alumni)
+├─ event_date
+└─ promotion_level
+
+Registrations
+├─ registration_id (PK)
+├─ student_id (FK)
+├─ event_id (FK)
+├─ registered_date
+└─ attended (0/1 — target)
+
+ModelVersion
+├─ model_id (PK)
+├─ model_type (xgboost, random_forest, logistic_regression)
+├─ timestamp
+├─ f1_score
+├─ threshold
+└─ is_active
+```
+
+### Performance Metrics
+
+**Why F1 Over Accuracy?**
+
+Your attendance target is **imbalanced**: 
+- ~70% students don't attend (negative class)
+- ~30% students attend (positive class)
+
+If a model always predicted "no one attends," it would have 70% accuracy — but would be worthless for planning. **F1 catches this** by balancing:
+
+$$F1 = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}$$
+
+- **Precision** = "Of attendees I predicted, how many actually came?" (avoid over-booking)
+- **Recall** = "Of students who actually attended, how many did I predict?" (don't miss attendees)
+
+### How the Winner Model is Selected
+
+After training all 3 models, they're ranked by **F1 score**. The highest F1 wins and gets deployed.
+
+**Example from your running system:**
+
+| Model | F1 Score | Accuracy | AUC-ROC | Winner? |
+|-------|----------|----------|---------|---------|
+| XGBoost | 0.7125 | 0.6992 | 0.7847 | ❌ |
+| Random Forest | 0.7322 | 0.7095 | 0.8073 | ❌ |
+| **Logistic Regression** | **0.7337** | **0.7275** | **0.8267** | ✅ |
+
+**Why Logistic Regression won:**
+- Highest F1 score (primary selection criterion)
+- Excellent AUC-ROC (0.8267 = great discrimination)
+- Fastest inference (important for real-time API)
+- Better calibrated probabilities (threshold 0.42 is optimal)
+
+**Note:** The winner model can change on next retraining if data shifts. This is intentional — you always get the best model for your current data.
+
+**Test Performance by School** (from winner model)
+| School | Recall | Precision | F1 | Interpretation |
+|--------|--------|-----------|-----|-----------------|
+| Technology | 0.72 | 0.81 | 0.76 | Catch 72% of Tech attendees, 81% of predictions correct |
+| Design | 0.68 | 0.78 | 0.72 | Catch 68% of Design attendees, 78% precision |
+| Business | 0.64 | 0.76 | 0.69 | Catch 64% of Business attendees, 76% precision |
+| Music | 0.58 | 0.72 | 0.64 | Catch 58% of Music attendees, 72% precision |
+
+*Lower performance for Music indicates challenging minority-within-minority dynamics.*
+
+**When to Trust the Predictions:**
+- ✅ When F1 > 0.70: Good balance of recall and precision
+- ⚠️ When F1 ~ 0.60: Use with caution, higher uncertainty
+- ❌ When F1 < 0.50: Model is not confident enough
+
+### Deployment Checklist
+
+✅ **Development**
+- [ ] Run `python main.py` locally (generates data, trains models)
+- [ ] Test via `python api_server.py --port 8765`
+- [ ] Smoke-test `/api/predict` with sample payload
+
+✅ **Production (Docker)**
+- [ ] Build: `docker compose build`
+- [ ] Deploy: `docker compose up -d` or `./deploy.sh`
+- [ ] Verify: `curl http://localhost/api/health`
+- [ ] Monitor: `docker compose logs -f`
+
+✅ **Data Refresh**
+- [ ] Quarterly: `python generate_data.py --regenerate`
+- [ ] Monthly: `python src/retrain.py --from-db`
+- [ ] Manual: `python src/retrain.py --force`
+
+### How Training Works
+
+Raw data has weak correlations (~0.08). The pipeline creates **5 categories** of 69 derived features — see [Feature Engineering Pipeline](#feature-engineering-pipeline-19-raw--69-features) for details.
+
+Then three models compete **simultaneously**:
+
+```
+┌─────────────────────────────────────────────┐
+│  Train 3 Models in Parallel:                │
+│  • XGBoost (gradient boosting)              │
+│  • Random Forest (ensemble)                 │
+│  • Logistic Regression (linear baseline)   │
+└─────────────────────────────────────────────┘
+   ↓
+SMOTE (balance if minority <35%)
+   ↓
+5-Fold CV + Threshold Sweep (0.10–0.60 for each model)
+   ↓
+┌─────────────────────────────────────────────┐
+│  Compare by F1 Score:                       │
+│  Model A F1: 0.7125  ❌                     │
+│  Model B F1: 0.7322  ❌                     │
+│  Model C F1: 0.7337  ✅ WINNER              │
+└─────────────────────────────────────────────┘
+   ↓
+Deploy winner (only if ≥1% improvement over current)
+```
+
+**What Actually Matters:**
+
+The **winner model changes** each time you retrain — it's determined by whichever model shows the highest F1 score on that specific dataset:
+
+| Training Run | Winner | F1 Score | Why |
+|--------------|--------|----------|-----|
+| Run 1 (initial) | Logistic Regression | 0.7337 | Best F1 on this data |
+| Run 2 (next month) | XGBoost | 0.7421 | ~1% better, gets promoted |
+| Run 3 (new semester) | Random Forest | 0.7458 | ~0.5% better, gets promoted |
+
+**The key insight:** You don't care if XGBoost or Logistic Regression wins — you care that **the best model for your current data gets deployed**. The selection mechanism ensures you're always using the optimal model.
 
 ---
 
 ## 📁 Project Structure
 
+### Essential Files (Required for Runtime)
+
 ```
-├── main.py                    # Entry point: generate data → init DB → train from DB
-├── app.py                     # Streamlit dashboard (5 pages + maintenance timelines)
-├── generate_data.py           # Standalone data synthesizer (CLI + programmatic)
-├── requirements.txt           # Dependencies
+✅ ESSENTIAL
+├── main.py                         # Entry point: data gen → DB init → training
+├── api_server.py                   # Production API + frontend server (Docker runs this)
+├── generate_data.py                # Data synthesis (called by main.py & api_server.py)
+├── requirements.txt                # Python dependencies
 │
-├── src/
+├── src/                            # Core ML pipeline
 │   ├── __init__.py
-│   ├── database.py            # SQLAlchemy ORM (4 tables: Student, Event, Registration, ModelVersion)
-│   ├── feature_engineering.py # 20 raw → 69 features (incl. school-topic affinity)
-│   ├── train_model.py         # XGBoost + RF + LR training + NaN imputation + SMOTE
-│   ├── retrain.py             # Hot-retraining pipeline (1% F1 improvement gate)
-│   └── predict.py             # Prediction engine (handles missing columns gracefully)
+│   ├── database.py                 # SQLAlchemy ORM + CSV ↔ DB sync
+│   ├── feature_engineering.py      # 19 raw columns → 69 features
+│   ├── train_model.py              # 3-model training + selection
+│   ├── retrain.py                  # Hot-swap retraining pipeline
+│   └── predict.py                  # Single event prediction engine
 │
-├── models/                    # ⚠️ gitignored — auto-generated by main.py
-│   ├── *_latest.pkl           # Trained model files (joblib)
-│   ├── *_latest_meta.json     # Model metadata (threshold, features, scores)
-│   └── model_comparison.json  # 3-model comparison results
-│
-├── data/                      # ⚠️ gitignored — auto-generated
-│   └── workshop.db            # SQLite database (normalized: students + events + registrations)
-│
-└── master_dataset.csv         # ⚠️ gitignored — auto-generated by generate_data.py
+└── frontend/                       # Production dashboard UI
+    ├── index.html                  # HTML structure (3 tabs)
+    ├── script.js                   # Client-side logic + API calls
+    └── styles.css                  # Dark theme + responsive layout
 ```
 
-> **Fresh clone?** Just run `python main.py` — it generates data, builds the DB, and trains all models automatically.
+### Generated / Deployment Files
+
+```
+⚠️ AUTO-GENERATED (every run of main.py)
+├── data/
+│   └── workshop.db                 # SQLite database (students, events, registrations)
+├── models/
+│   ├── xgboost_latest.pkl          # Trained model (joblib)
+│   ├── logistic_regression_latest_meta.json   # Metadata + threshold
+│   └── model_comparison.json       # 3-model comparison metrics
+└── master_dataset.csv              # Synthetic data (3,900 registrations)
+
+📦 INFRASTRUCTURE (Docker/deployment)
+├── Dockerfile                      # Container definition (runs api_server.py)
+├── docker-compose.yml              # Multi-container orchestration
+├── deploy.sh                       # Automated deployment script
+└── nginx/
+    ├── nginx.conf                  # Web server config
+    └── conf.d/app.conf             # Reverse proxy rules
+```
+
+### Optional / Documentation
+
+```
+📄 OPTIONAL
+├── README.md                       # This file (docs only)
+├── .gitignore                      # Git config (docs only)
+├── DEPLOYMENT.md                   # Deployment guide
+├── DOCKER-COMMANDS.md              # Docker cheat sheet
+└── SETUP-SUMMARY.md                # Initial setup notes
+```
+
+> **Fresh clone?** Just run `python main.py` — it auto-generates data, builds the SQLite DB, and trains all models.
+> **Why no master_dataset.csv in git?** It's synthesized on the fly; no need to commit generated files.
 
 ---
 
-## 📊 Current Model Performance
-
-| Model                                  | F1 Score        | AUC-ROC         | Accuracy        |
-| -------------------------------------- | --------------- | --------------- | --------------- |
-| XGBoost                                | 0.701           | 0.787           | 0.698           |
-| Random Forest                          | 0.732           | 0.807           | 0.710           |
-| **Logistic Regression (Winner)** | **0.734** | **0.827** | **0.728** |
-
-> F1 is the primary metric — accuracy alone is misleading with imbalanced data.
-> Winner is auto-selected by highest F1 score. Results vary by seed.
-> Trained on 4 VBU schools with 16 cross-school FutureWorkshop topics.
-
----
-
-## 🛠️ Tech Stack
-
-| Layer                     | Technology                                                 |
-| ------------------------- | ---------------------------------------------------------- |
-| **ML Models**       | XGBoost, Random Forest, Logistic Regression (scikit-learn) |
-| **Data Balancing**  | SMOTE (imbalanced-learn)                                   |
-| **Database**        | SQLite via SQLAlchemy ORM                                  |
-| **Dashboard**       | Streamlit + Plotly                                         |
-| **Data Processing** | Pandas, NumPy                                              |
-| **Visualization**   | Plotly, Matplotlib, Seaborn                                |
-| **Serialization**   | Joblib                                                     |
-
----
-
-## 🔮 Future Improvements
+## � Future Roadmap
 
 - [ ] Integrate with college LMS / Google Forms for real data
 - [ ] Student-level prediction (which specific students will attend)

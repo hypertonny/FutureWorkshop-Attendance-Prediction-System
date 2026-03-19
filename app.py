@@ -29,25 +29,25 @@ MODELS_DIR = os.path.join(BASE_DIR, "models")
 
 # ---- Color Palette ----
 COLORS = {
-    'primary': '#6C63FF',
-    'secondary': '#00D2FF',
-    'accent': '#FF6584',
-    'success': '#00C9A7',
-    'warning': '#FFB800',
-    'danger': '#FF4757',
-    'bg_card': '#1E1E2E',
-    'bg_dark': '#0E1117',
-    'text': '#E8E8E8',
-    'text_dim': '#8B8FA3',
-    'gradient_1': '#6C63FF',
-    'gradient_2': '#00D2FF',
-    'gradient_3': '#00C9A7',
-    'gradient_4': '#FF6584',
+    'primary': '#4F8EF7',
+    'secondary': '#00D4FF',
+    'accent': '#FF6B9D',
+    'success': '#00C896',
+    'warning': '#F9A826',
+    'danger': '#FF5A7A',
+    'bg_card': '#101B33',
+    'bg_dark': '#0A0D1A',
+    'text': '#E8EEFF',
+    'text_dim': '#97A6CC',
+    'gradient_1': '#4F8EF7',
+    'gradient_2': '#00D4FF',
+    'gradient_3': '#00C896',
+    'gradient_4': '#FF6B9D',
 }
 
 PLOTLY_TEMPLATE = 'plotly_dark'
-CHART_COLORS = ['#6C63FF', '#00D2FF', '#00C9A7', '#FF6584', '#FFB800', 
-                '#A855F7', '#F472B6', '#38BDF8', '#34D399', '#FBBF24']
+CHART_COLORS = ['#4F8EF7', '#00D4FF', '#00C896', '#FF6B9D', '#F9A826',
+                '#2DC5FF', '#28D7B0', '#FFC857', '#73A6FF', '#FF8FB4']
 
 
 # ---- Page Config ----
@@ -62,128 +62,201 @@ st.set_page_config(
 # ---- Custom CSS ----
 st.markdown("""
 <style>
-    /* Import fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-    
-    /* Global */
-    .stApp { font-family: 'Plus Jakarta Sans', sans-serif; }
-    
-    /* Hide default header & footer */
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap');
+
+    :root {
+        --bg-main: #0a0d1a;
+        --bg-card: #101b33;
+        --card-edge: rgba(79, 142, 247, 0.25);
+        --text-main: #e8eeff;
+        --text-muted: #97a6cc;
+        --brand-blue: #4f8ef7;
+        --brand-cyan: #00d4ff;
+        --brand-coral: #ff6b9d;
+        --brand-green: #00c896;
+    }
+
+    .stApp {
+        font-family: 'DM Sans', sans-serif;
+        color: var(--text-main);
+        background:
+            radial-gradient(800px 500px at 10% 2%, rgba(79, 142, 247, 0.14), transparent 60%),
+            radial-gradient(700px 500px at 95% 8%, rgba(0, 212, 255, 0.12), transparent 60%),
+            var(--bg-main);
+    }
+
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
     header { visibility: hidden; }
-    
-    /* Sidebar */
+
+    .main .block-container {
+        max-width: 1260px;
+        padding-top: 1.4rem;
+        padding-bottom: 2rem;
+    }
+
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        border-right: 1px solid rgba(108, 99, 255, 0.2);
+        background: linear-gradient(180deg, #0c1224 0%, #0f1d3a 52%, #10284f 100%);
+        border-right: 1px solid rgba(79, 142, 247, 0.24);
+    }
+    [data-testid="stSidebar"] .stRadio > div {
+        gap: 0.45rem;
     }
     [data-testid="stSidebar"] .stRadio label[data-baseweb="radio"] {
-        padding: 8px 12px;
-        border-radius: 10px;
-        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 12px;
+        padding: 10px 12px;
+        transition: all 0.25s ease;
     }
     [data-testid="stSidebar"] .stRadio label[data-baseweb="radio"]:hover {
-        background: rgba(108, 99, 255, 0.15);
+        background: rgba(79, 142, 247, 0.16);
+        border-color: rgba(79, 142, 247, 0.45);
+        transform: translateX(2px);
     }
-    
-    /* Metric cards */
+
     [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #1E1E2E 0%, #2D2B55 100%);
-        border: 1px solid rgba(108, 99, 255, 0.2);
-        border-radius: 16px;
+        background: linear-gradient(150deg, rgba(16, 27, 51, 0.95), rgba(12, 21, 40, 0.95));
+        border: 1px solid var(--card-edge);
+        border-radius: 18px;
         padding: 20px 24px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 30px rgba(108, 99, 255, 0.2);
-        border-color: rgba(108, 99, 255, 0.5);
+        box-shadow: 0 12px 28px rgba(3, 8, 20, 0.5);
     }
     [data-testid="stMetricLabel"] {
-        font-size: 0.85rem !important;
-        font-weight: 500 !important;
-        color: #8B8FA3 !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
     }
     [data-testid="stMetricValue"] {
-        font-size: 2rem !important;
-        font-weight: 700 !important;
-        background: linear-gradient(135deg, #6C63FF, #00D2FF);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        font-size: 1.95rem !important;
+        font-weight: 800 !important;
+        color: var(--text-main) !important;
     }
-    
-    /* Subheaders */
-    .stMarkdown h2, .stMarkdown h3 {
-        color: #E8E8E8 !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Form styling */
+
     [data-testid="stForm"] {
-        background: linear-gradient(135deg, #1E1E2E 0%, #252540 100%);
-        border: 1px solid rgba(108, 99, 255, 0.15);
-        border-radius: 16px;
-        padding: 30px;
+        background: linear-gradient(145deg, rgba(16, 27, 51, 0.9), rgba(10, 18, 36, 0.9));
+        border: 1px solid rgba(79, 142, 247, 0.2);
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: 0 14px 34px rgba(3, 8, 20, 0.45);
     }
-    
-    /* Buttons */
-    .stButton > button {
-        background: linear-gradient(135deg, #6C63FF 0%, #5A52D5 100%);
+
+    .stButton > button,
+    [data-testid="stFormSubmitButton"] button {
         border: none;
         border-radius: 12px;
-        padding: 12px 32px;
-        font-weight: 600;
-        font-size: 1rem;
-        letter-spacing: 0.3px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(108, 99, 255, 0.3);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        background: linear-gradient(120deg, var(--brand-blue), var(--brand-cyan));
+        color: white;
+        box-shadow: 0 10px 26px rgba(79, 142, 247, 0.38);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #7B73FF 0%, #6C63FF 100%);
+    .stButton > button:hover,
+    [data-testid="stFormSubmitButton"] button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+        box-shadow: 0 14px 30px rgba(79, 142, 247, 0.5);
     }
-    
-    /* Selectbox / Slider */
-    .stSelectbox > div > div, .stSlider > div {
-        border-radius: 10px;
+
+    .stSelectbox > div > div,
+    .stDateInput > div > div,
+    .stSlider > div > div,
+    .stMultiSelect > div > div,
+    .stNumberInput > div > div {
+        border-radius: 12px !important;
+        border-color: rgba(79, 142, 247, 0.35) !important;
+        background: rgba(8, 16, 32, 0.76) !important;
     }
-    
-    /* Dividers */
-    hr { border-color: rgba(108, 99, 255, 0.15) !important; margin: 2rem 0 !important; }
-    
-    /* Tabs */
+
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background: transparent;
+        margin-bottom: 6px;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
-        padding: 10px 20px;
-        background: rgba(108, 99, 255, 0.08);
-        border: 1px solid rgba(108, 99, 255, 0.15);
+        border-radius: 12px;
+        padding: 8px 16px;
+        border: 1px solid rgba(79, 142, 247, 0.28);
+        background: rgba(79, 142, 247, 0.08);
     }
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #6C63FF 0%, #5A52D5 100%) !important;
+        background: linear-gradient(120deg, rgba(79, 142, 247, 0.95), rgba(0, 212, 255, 0.92)) !important;
+        border-color: transparent !important;
     }
-    
-    /* Expander */
+
     .streamlit-expanderHeader {
-        background: rgba(108, 99, 255, 0.08);
-        border-radius: 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(79, 142, 247, 0.24);
+        background: rgba(79, 142, 247, 0.1);
     }
-    
-    /* Alert boxes */
-    .stAlert { border-radius: 12px; }
-    
-    /* Plotly chart containers */
-    .stPlotlyChart { border-radius: 16px; overflow: hidden; }
-    
-    /* ---- Fade-in / Lazy-load Animations ---- */
+
+    hr {
+        border-color: rgba(79, 142, 247, 0.28) !important;
+        margin: 1.6rem 0 !important;
+    }
+
+    .hero-shell {
+        background:
+            radial-gradient(130% 190% at 0% 0%, rgba(79, 142, 247, 0.25), transparent 56%),
+            radial-gradient(130% 170% at 100% 0%, rgba(0, 212, 255, 0.18), transparent 62%),
+            linear-gradient(145deg, rgba(16, 27, 51, 0.95), rgba(8, 16, 32, 0.95));
+        border: 1px solid rgba(79, 142, 247, 0.35);
+        border-radius: 22px;
+        padding: 22px 24px;
+        margin-bottom: 18px;
+        box-shadow: 0 18px 38px rgba(5, 10, 24, 0.55);
+    }
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        color: #e6f5ff;
+        background: rgba(79, 142, 247, 0.24);
+        border: 1px solid rgba(79, 142, 247, 0.5);
+        border-radius: 999px;
+        padding: 6px 10px;
+        margin-bottom: 12px;
+    }
+    .hero-title {
+        font-family: 'Syne', sans-serif;
+        font-size: clamp(1.65rem, 2.9vw, 2.5rem);
+        line-height: 1.15;
+        margin: 0;
+        color: var(--text-main);
+    }
+    .hero-subtitle {
+        color: var(--text-muted);
+        margin: 10px 0 0;
+        max-width: 840px;
+        font-size: 1.02rem;
+    }
+
+    .section-heading {
+        font-family: 'Syne', sans-serif;
+        color: #e7eeff;
+        font-size: 1.42rem;
+        margin: 0;
+    }
+    .section-note {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        margin-top: 2px;
+        margin-bottom: 12px;
+    }
+
+    .stPlotlyChart {
+        border-radius: 18px;
+        border: 1px solid rgba(79, 142, 247, 0.18);
+        background: rgba(10, 17, 33, 0.55);
+        padding: 6px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+
     @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(24px); }
         to { opacity: 1; transform: translateY(0); }
@@ -215,7 +288,7 @@ st.markdown("""
         position: fixed;
         top: 0; left: 0;
         width: 100vw; height: 100vh;
-        background: linear-gradient(135deg, #0E1117 0%, #1a1a2e 40%, #16213e 100%);
+        background: linear-gradient(145deg, #0a0d1a 0%, #111a31 48%, #112850 100%);
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -245,22 +318,22 @@ st.markdown("""
         margin-bottom: 8px;
     }
     .splash-sub {
-        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-family: 'DM Sans', sans-serif;
         font-size: 0.95rem;
-        color: #8B8FA3;
+        color: #97a6cc;
         margin-bottom: 32px;
     }
     .splash-bar-track {
         width: 220px;
         height: 4px;
-        background: rgba(108, 99, 255, 0.15);
+        background: rgba(79, 142, 247, 0.18);
         border-radius: 4px;
         overflow: hidden;
     }
     .splash-bar-fill {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #6C63FF, #00D2FF);
+        background: linear-gradient(90deg, #4f8ef7, #00d4ff);
         border-radius: 4px;
         animation: splashProgress 2s ease-in-out forwards;
     }
@@ -272,33 +345,36 @@ st.markdown("""
     
     /* Custom gradient text */
     .gradient-text {
-        background: linear-gradient(135deg, #6C63FF, #00D2FF);
+        background: linear-gradient(135deg, #4f8ef7, #00d4ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800;
     }
-    .subtitle { color: #8B8FA3; font-size: 1.1rem; margin-top: -10px; }
+    .subtitle { color: #97a6cc; font-size: 1.02rem; margin-top: 2px; }
     
     /* Stat card custom HTML */
     .stat-card {
-        background: linear-gradient(135deg, #1E1E2E 0%, #2D2B55 100%);
-        border: 1px solid rgba(108, 99, 255, 0.2);
+        background: linear-gradient(135deg, #101b33 0%, #142749 100%);
+        border: 1px solid rgba(79, 142, 247, 0.22);
         border-radius: 16px;
         padding: 24px;
         text-align: center;
-        transition: transform 0.3s ease;
+        transition: transform 0.3s ease, border-color 0.3s ease;
     }
-    .stat-card:hover { transform: translateY(-3px); }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(0, 212, 255, 0.46);
+    }
     .stat-card .value {
-        font-size: 2.5rem;
+        font-size: 2.25rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #6C63FF, #00D2FF);
+        background: linear-gradient(135deg, #4f8ef7, #00d4ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
     .stat-card .label {
         font-size: 0.85rem;
-        color: #8B8FA3;
+        color: #97a6cc;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-top: 4px;
@@ -306,16 +382,16 @@ st.markdown("""
     
     /* Prediction result cards */
     .result-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #1E1E2E 100%);
+        background: linear-gradient(135deg, #101b33 0%, #0f172a 100%);
         border-left: 4px solid;
         border-radius: 12px;
         padding: 20px;
         margin: 8px 0;
     }
-    .result-card.purple { border-color: #6C63FF; }
-    .result-card.blue { border-color: #00D2FF; }
-    .result-card.green { border-color: #00C9A7; }
-    .result-card.pink { border-color: #FF6584; }
+    .result-card.purple { border-color: #4f8ef7; }
+    .result-card.blue { border-color: #00d4ff; }
+    .result-card.green { border-color: #00c896; }
+    .result-card.pink { border-color: #ff6b9d; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -422,29 +498,61 @@ def clean_layout(fig, height=400):
     return fig
 
 
+def render_hero(title, subtitle, badge):
+    st.markdown(
+        f"""
+        <div class="hero-shell fade-in-section">
+            <div class="hero-badge">{badge}</div>
+            <h1 class="hero-title">{title}</h1>
+            <p class="hero-subtitle">{subtitle}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_section_header(title, note=""):
+    st.markdown(
+        f"""
+        <h3 class="section-heading">{title}</h3>
+        {f'<p class="section-note">{note}</p>' if note else ''}
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_stat_cards(cards):
+    cols = st.columns(len(cards))
+    for col, card in zip(cols, cards):
+        with col:
+            st.markdown(
+                f"""
+                <div class="stat-card">
+                    <div class="value">{card['value']}</div>
+                    <div class="label">{card['label']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
 # ========================================================
 # PAGE: Overview
 # ========================================================
 if page == "🏠  Overview":
-    st.markdown('<div class="fade-in-section">', unsafe_allow_html=True)
-    st.markdown('<h1 class="gradient-text">Workshop Attendance Prediction</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">ML-powered insights to help organizers plan better events</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown("")
-    
-    # key metrics
-    st.markdown('<div class="fade-in-delay-1">', unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.metric("Total Events", f"{df['event_id'].nunique()}")
-    with c2:
-        st.metric("Total Students", f"{df['student_id'].nunique()}")
-    with c3:
-        st.metric("Registrations", f"{len(df):,}")
-    with c4:
-        st.metric("Avg Attendance", f"{df['attended'].mean():.1%}")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
+    render_hero(
+        "Workshop Attendance Prediction",
+        "ML-powered insights to help organizers plan better events and improve turnout planning.",
+        "Overview Dashboard",
+    )
+
+    render_stat_cards([
+        {'label': 'Total Events', 'value': f"{df['event_id'].nunique()}"},
+        {'label': 'Total Students', 'value': f"{df['student_id'].nunique()}"},
+        {'label': 'Registrations', 'value': f"{len(df):,}"},
+        {'label': 'Avg Attendance', 'value': f"{df['attended'].mean():.1%}"},
+    ])
+
     st.markdown("")
     
     # charts
@@ -452,6 +560,7 @@ if page == "🏠  Overview":
     col_left, col_right = st.columns(2)
     
     with col_left:
+        render_section_header('Attendance by Topic', 'Topics with stronger historical conversion rates stand out first.')
         topic_rates = df.groupby('topic')['attended'].agg(['mean', 'count']).sort_values('mean', ascending=True).reset_index()
         fig = go.Figure(go.Bar(
             y=topic_rates['topic'],
@@ -467,13 +576,14 @@ if page == "🏠  Overview":
             textfont=dict(size=11),
             hovertemplate='<b>%{y}</b><br>Rate: %{x:.1%}<br>Events: %{text}<extra></extra>',
         ))
-        fig.update_layout(title=dict(text='📊 Attendance by Topic', font=dict(size=18)))
+        fig.update_layout(title=dict(text='📊 Attendance by Topic', font=dict(size=17)))
         fig.update_xaxes(title='Attendance Rate', tickformat='.0%', range=[0, max(topic_rates['mean'])*1.3])
         fig.update_yaxes(title='')
         clean_layout(fig, height=500)
         st.plotly_chart(fig, width='stretch')
     
     with col_right:
+        render_section_header('Weekday vs Weekend', 'Pick slots where students are most likely to attend.')
         day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         day_rates = df.groupby('day_of_week')['attended'].mean().reindex(day_order).reset_index()
         day_rates.columns = ['day', 'rate']
@@ -488,7 +598,7 @@ if page == "🏠  Overview":
             textfont=dict(size=12, color='#E8E8E8'),
             hovertemplate='<b>%{x}</b><br>Rate: %{y:.1%}<extra></extra>',
         ))
-        fig.update_layout(title=dict(text='📅 Weekday vs Weekend', font=dict(size=18)))
+        fig.update_layout(title=dict(text='📅 Weekday vs Weekend', font=dict(size=17)))
         fig.update_yaxes(title='Attendance Rate', tickformat='.0%')
         fig.update_xaxes(title='')
         clean_layout(fig, height=500)
@@ -500,7 +610,7 @@ if page == "🏠  Overview":
     if model_info:
         st.markdown('<div class="fade-in-delay-5">', unsafe_allow_html=True)
         st.markdown("---")
-        st.markdown("### 🤖 Active Model")
+        render_section_header('Active Model', 'Live model metadata from latest training artifacts.')
         m1, m2, m3 = st.columns(3)
         with m1:
             st.metric("Model", model_info['model_name'].upper().replace('_', ' '))

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -129,6 +129,10 @@ def _to_float_list(series: pd.Series) -> list[float]:
     return [round(float(v), 4) for v in series.tolist()]
 
 
+def _utc_iso_z() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 def build_overview_payload(df: pd.DataFrame) -> dict:
     model = _load_model_payload()
     avg_attendance = float(df["attended"].mean()) if "attended" in df.columns else 0.0
@@ -139,7 +143,7 @@ def build_overview_payload(df: pd.DataFrame) -> dict:
         "registrations": int(len(df.index)),
         "avg_attendance": round(avg_attendance, 4),
         "model": model,
-        "updated_at": datetime.utcnow().isoformat() + "Z",
+        "updated_at": _utc_iso_z(),
     }
 
 
@@ -462,7 +466,7 @@ def build_model_details_payload() -> dict:
         "top_features": features[:15],
         "retrain_history": retrain_history,
         "maintenance_timeline": timeline,
-        "updated_at": datetime.utcnow().isoformat() + "Z",
+        "updated_at": _utc_iso_z(),
     }
 
 
@@ -574,7 +578,7 @@ class WorkshopRequestHandler(SimpleHTTPRequestHandler):
                 "exam_proximity": int(payload["exam_proximity"]),
                 "promotion_level": str(payload["promotion_level"]),
                 "num_registrations": int(payload["num_registrations"]),
-                "event_date": str(payload.get("event_date") or datetime.utcnow().date().isoformat()),
+                "event_date": str(payload.get("event_date") or datetime.now(timezone.utc).date().isoformat()),
             }
 
             df = load_dataset()
