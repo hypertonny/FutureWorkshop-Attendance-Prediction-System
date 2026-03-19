@@ -950,9 +950,10 @@ The **winner model changes** each time you retrain — it's determined by whiche
 📄 OPTIONAL
 ├── README.md                       # This file (docs only)
 ├── .gitignore                      # Git config (docs only)
-├── DEPLOYMENT.md                   # Deployment guide
-├── DOCKER-COMMANDS.md              # Docker cheat sheet
-└── SETUP-SUMMARY.md                # Initial setup notes
+└── docs/
+  ├── DEPLOYMENT.md               # Deployment guide
+  ├── DOCKER-COMMANDS.md          # Docker cheat sheet
+  └── SETUP-SUMMARY.md            # Initial setup notes
 ```
 
 > **Fresh clone?** Just run `python main.py` — it auto-generates data, builds the SQLite DB, and trains all models.
