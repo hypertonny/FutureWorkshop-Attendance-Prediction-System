@@ -6,6 +6,8 @@
     overview: null,
     modelDetails: null,
     selectedExamProximity: 2,
+    activeTheme: "dark",
+    lastTopicAnalysis: null,
   };
 
   const DAY_SHORT = {
@@ -25,10 +27,31 @@
     logistic_regression: "#FFB44A",
   };
 
+  // Vibrant matplotlib-inspired color palette (18 colors)
+  const VIBRANT_PALETTE = [
+    "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+    "#F7DC6F", "#BB8FCE", "#85C1E9", "#F8B88B", "#A9DFBF",
+    "#F5B7B1", "#AED6F1", "#D7BDE2", "#FAD7A0", "#82E0AA",
+    "#EC7063", "#52BE80", "#5DADE2"
+  ];
+
+  // Extended palette for up to 12 items with vibrant colors
+  const EXTENDED_PALETTE = [
+    "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#F7DC6F",
+    "#BB8FCE", "#FF8C42", "#A9DFBF", "#F8B88B", "#E74C3C",
+    "#9B59B6", "#3498DB"
+  ];
+
   const THEME = {
     text: "#EAF2FF",
     muted: "#9DB2D8",
     grid: "rgba(157, 178, 216, 0.18)",
+  };
+
+  const LIGHT_THEME = {
+    text: "#0D1A2E",
+    muted: "#4B668F",
+    grid: "rgba(66, 95, 138, 0.2)",
   };
 
   function byId(id) {
@@ -87,6 +110,53 @@
     return `Updated ${d.toLocaleString()}`;
   }
 
+  function setTheme(themeName, persist = true) {
+    const isLight = themeName === "light";
+    document.body.setAttribute("data-theme", isLight ? "light" : "dark");
+    state.activeTheme = isLight ? "light" : "dark";
+
+    const btn = byId("themeToggleButton");
+    if (btn) {
+      btn.textContent = isLight ? "Dark Mode" : "Light Mode";
+    }
+
+    if (persist) {
+      try {
+        window.localStorage.setItem("workshop_theme", state.activeTheme);
+      } catch (error) {
+        console.warn("Theme persistence unavailable", error);
+      }
+    }
+  }
+
+  function setupThemeToggle() {
+    let initialTheme = "dark";
+    try {
+      const saved = window.localStorage.getItem("workshop_theme");
+      if (saved === "light" || saved === "dark") {
+        initialTheme = saved;
+      }
+    } catch (error) {
+      console.warn("Theme read unavailable", error);
+    }
+
+    setTheme(initialTheme, false);
+    const themeToggle = byId("themeToggleButton");
+    themeToggle?.addEventListener("click", () => {
+      setTheme(state.activeTheme === "light" ? "dark" : "light");
+      chartDefaults();
+      if (state.chartsPayload) {
+        renderEdaCharts(state.chartsPayload);
+      }
+      if (state.modelDetails) {
+        renderModelPage(state.modelDetails);
+      }
+      if (state.lastTopicAnalysis) {
+        renderFilteredTopicInsights(state.lastTopicAnalysis);
+      }
+    });
+  }
+
   async function apiRequest(path, options = {}) {
     const response = await fetch(`/api${path}`, options);
     const payload = await response.json().catch(() => ({}));
@@ -94,6 +164,29 @@
       throw new Error(payload.error || `Request failed (${response.status})`);
     }
     return payload;
+  }
+
+  function hideSplash(delay = 300) {
+    const splash = byId("splash");
+    if (!splash) return;
+    
+    window.setTimeout(() => {
+      splash.style.opacity = "0";
+      splash.style.visibility = "hidden";
+      splash.style.transition = "opacity 0.6s ease-out";
+      window.setTimeout(() => {
+        if (splash.parentNode) {
+          splash.remove();
+        }
+      }, 620);
+    }, delay);
+  }
+
+  function updateSplashProgress(text, percentage) {
+    const splashText = byId("splashText");
+    const splashBar = byId("splashBar");
+    if (splashText) splashText.textContent = text;
+    if (splashBar) splashBar.style.width = `${Math.min(percentage, 95)}%`;
   }
 
   function initSplash() {
@@ -104,17 +197,9 @@
     }
 
     window.requestAnimationFrame(() => {
-      bar.style.transition = "width 1.5s cubic-bezier(0.22, 0.61, 0.36, 1)";
-      bar.style.width = "100%";
+      bar.style.transition = "width 0.8s cubic-bezier(0.22, 0.61, 0.36, 1)";
+      bar.style.width = "30%";
     });
-
-    window.setTimeout(() => {
-      splash.style.opacity = "0";
-      splash.style.visibility = "hidden";
-      window.setTimeout(() => {
-        splash.remove();
-      }, 620);
-    }, 1700);
   }
 
   function setupTabs() {
@@ -240,8 +325,9 @@
   }
 
   function chartDefaults() {
-    Chart.defaults.color = THEME.muted;
-    Chart.defaults.borderColor = THEME.grid;
+    const palette = state.activeTheme === "light" ? LIGHT_THEME : THEME;
+    Chart.defaults.color = palette.muted;
+    Chart.defaults.borderColor = palette.grid;
     Chart.defaults.font.family = "Manrope";
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
     Chart.defaults.plugins.legend.labels.boxWidth = 8;
@@ -264,26 +350,29 @@
   }
 
   function baseCartesianOptions(extra = {}) {
+    const palette = state.activeTheme === "light" ? LIGHT_THEME : THEME;
+    const tooltipBackground = state.activeTheme === "light" ? "rgba(244, 249, 255, 0.96)" : "rgba(9, 16, 30, 0.95)";
+    const tooltipBorder = state.activeTheme === "light" ? "rgba(99, 131, 177, 0.35)" : "rgba(142, 174, 232, 0.25)";
     return {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { color: THEME.muted } },
+        legend: { labels: { color: palette.muted } },
         tooltip: {
-          backgroundColor: "rgba(9, 16, 30, 0.95)",
-          borderColor: "rgba(142, 174, 232, 0.25)",
+          backgroundColor: tooltipBackground,
+          borderColor: tooltipBorder,
           borderWidth: 1,
         },
       },
       scales: {
         x: {
-          ticks: { color: THEME.muted },
-          grid: { color: "rgba(157, 178, 216, 0.08)" },
+          ticks: { color: palette.muted },
+          grid: { color: state.activeTheme === "light" ? "rgba(66, 95, 138, 0.08)" : "rgba(157, 178, 216, 0.08)" },
         },
         y: {
-          ticks: { color: THEME.muted },
-          grid: { color: "rgba(157, 178, 216, 0.11)" },
+          ticks: { color: palette.muted },
+          grid: { color: state.activeTheme === "light" ? "rgba(66, 95, 138, 0.11)" : "rgba(157, 178, 216, 0.11)" },
         },
       },
       ...extra,
@@ -291,8 +380,8 @@
   }
 
   function renderHeatmap(heatmapPayload) {
-    const heatmapGrid = byId("heatmapGrid");
-    if (!heatmapGrid) {
+    const heatmapContainer = byId("chartHeatmap");
+    if (!heatmapContainer) {
       return;
     }
 
@@ -301,11 +390,16 @@
     const matrix = heatmapPayload.matrix || [];
 
     if (!days.length || !slots.length) {
-      heatmapGrid.innerHTML = "<p class=\"panel-note\">No heatmap data available.</p>";
+      heatmapContainer.innerHTML = '<p class="panel-note">No heatmap data available.</p>';
       return;
     }
 
-    heatmapGrid.innerHTML = "";
+    heatmapContainer.innerHTML = ""; // Clear previous content
+
+    const heatmapGrid = document.createElement("div");
+    heatmapGrid.className = "heatmap-grid";
+    heatmapContainer.appendChild(heatmapGrid);
+
     heatmapGrid.style.setProperty("--slot-count", String(slots.length));
 
     const header = document.createElement("div");
@@ -354,6 +448,7 @@
   }
 
   function renderEdaCharts(payload) {
+    // 1. Topic Rankings - Horizontal Bar with Vibrant Colors
     const topicLabels = payload.topic?.labels || [];
     const topicRates = (payload.topic?.rates || []).map((v) => Number(v) * 100);
     renderChart("topic", "chartTopic", {
@@ -363,16 +458,29 @@
         datasets: [{
           label: "Attendance %",
           data: topicRates,
-          backgroundColor: "#5B8CFF",
+          backgroundColor: EXTENDED_PALETTE.slice(0, Math.max(5, Math.min(12, topicLabels.length))),
           borderRadius: 8,
+          borderWidth: 2,
+          borderColor: "rgba(255,255,255,0.4)",
         }],
       },
       options: baseCartesianOptions({
         indexAxis: "y",
         plugins: { legend: { display: false } },
+        onClick: (_event, elements, chart) => {
+          if (!elements.length) return;
+          const index = elements[0].index;
+          const topic = chart.data.labels?.[index];
+          if (!topic) return;
+          const topicFilter = byId("edaTopicFilter");
+          if (topicFilter) topicFilter.value = String(topic);
+          applyEdaFilters();
+          showToast(`Topic filter applied: ${topic}`);
+        },
       }),
     });
 
+    // 2. Day of Week - Bar Chart with Weekend Colors
     const dayLabels = (payload.day?.labels || []).map((d) => DAY_SHORT[d] || d);
     const dayRates = (payload.day?.rates || []).map((v) => Number(v) * 100);
     renderChart("day", "chartDay", {
@@ -382,13 +490,16 @@
         datasets: [{
           label: "Attendance %",
           data: dayRates,
-          backgroundColor: dayLabels.map((d) => (d === "Sat" || d === "Sun" ? "#FF7F66" : "#28C7D9")),
+          backgroundColor: dayLabels.map((d) => (d === "Sat" || d === "Sun" ? "#FF6B6B" : "#4ECDC4")),
           borderRadius: 8,
+          borderWidth: 2,
+          borderColor: "rgba(255,255,255,0.3)",
         }],
       },
       options: baseCartesianOptions({ plugins: { legend: { display: false } } }),
     });
 
+    // 3. Monthly Trends - Multi-line + Bar
     renderChart("month", "chartMonth", {
       data: {
         labels: payload.monthly?.labels || [],
@@ -397,25 +508,33 @@
             type: "line",
             label: "Registrations",
             data: payload.monthly?.registrations || [],
-            borderColor: "#5B8CFF",
-            backgroundColor: "rgba(91, 140, 255, 0.14)",
-            tension: 0.3,
+            borderColor: "#FF6B6B",
+            backgroundColor: "rgba(255, 107, 107, 0.15)",
+            tension: 0.4,
+            pointRadius: 6,
+            pointBorderColor: "#FF6B6B",
+            pointBackgroundColor: "#FF6B6B",
+            pointBorderWidth: 2,
             yAxisID: "y",
           },
           {
             type: "line",
             label: "Attended",
             data: payload.monthly?.attended || [],
-            borderColor: "#28C7D9",
-            backgroundColor: "rgba(40, 199, 217, 0.12)",
-            tension: 0.3,
+            borderColor: "#4ECDC4",
+            backgroundColor: "rgba(78, 205, 196, 0.15)",
+            tension: 0.4,
+            pointRadius: 6,
+            pointBorderColor: "#4ECDC4",
+            pointBackgroundColor: "#4ECDC4",
+            pointBorderWidth: 2,
             yAxisID: "y",
           },
           {
             type: "bar",
             label: "Rate %",
             data: (payload.monthly?.rates || []).map((v) => Number(v) * 100),
-            backgroundColor: "rgba(255, 180, 74, 0.4)",
+            backgroundColor: "#45B7D1",
             borderRadius: 6,
             yAxisID: "y1",
           },
@@ -425,7 +544,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { labels: { color: THEME.muted } },
+          legend: { labels: { color: THEME.muted, padding: 15 } },
         },
         scales: {
           x: { ticks: { color: THEME.muted }, grid: { color: "rgba(157, 178, 216, 0.08)" } },
@@ -441,6 +560,71 @@
       },
     });
 
+    // 4. Mode Radar Chart
+    renderChart("modeRadar", "chartModeRadar", {
+      type: "radar",
+      data: {
+        labels: payload.mode?.labels || [],
+        datasets: [{
+          label: "Attendance Rate",
+          data: (payload.mode?.rates || []).map((v) => Number(v) * 100),
+          borderColor: "#4ECDC4",
+          backgroundColor: "rgba(78, 205, 196, 0.25)",
+          pointBackgroundColor: "#4ECDC4",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: THEME.muted, padding: 15 } },
+        },
+        scales: {
+          r: {
+            grid: { color: "rgba(157, 178, 216, 0.2)" },
+            ticks: { color: THEME.muted },
+          },
+        },
+      },
+    });
+
+    // 5. Department Radar Chart
+    renderChart("deptRadar", "chartDeptRadar", {
+      type: "radar",
+      data: {
+        labels: payload.department?.labels || [],
+        datasets: [{
+          label: "Attendance Rate",
+          data: (payload.department?.rates || []).map((v) => Number(v) * 100),
+          borderColor: "#FF6B6B",
+          backgroundColor: "rgba(255, 107, 107, 0.25)",
+          pointBackgroundColor: "#FF6B6B",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: THEME.muted, padding: 15 } },
+        },
+        scales: {
+          r: {
+            grid: { color: "rgba(157, 178, 216, 0.2)" },
+            ticks: { color: THEME.muted },
+          },
+        },
+      },
+    });
+
+    // 6. Speaker Impact - Vibrant Bars
     renderChart("speaker", "chartSpeaker", {
       type: "bar",
       data: {
@@ -448,8 +632,10 @@
         datasets: [{
           label: "Attendance %",
           data: (payload.speaker?.rates || []).map((v) => Number(v) * 100),
-          backgroundColor: "#5B8CFF",
+          backgroundColor: EXTENDED_PALETTE.slice(0, Math.max(3, Math.min(12, (payload.speaker?.labels || []).length))),
           borderRadius: 8,
+          borderWidth: 2,
+          borderColor: "rgba(255,255,255,0.3)",
         }],
       },
       options: baseCartesianOptions({
@@ -458,20 +644,30 @@
       }),
     });
 
-    renderChart("mode", "chartMode", {
-      type: "bar",
+    // 7. Mode Pie Chart
+    renderChart("modePie", "chartModePie", {
+      type: "doughnut",
       data: {
         labels: payload.mode?.labels || [],
         datasets: [{
           label: "Attendance %",
           data: (payload.mode?.rates || []).map((v) => Number(v) * 100),
-          backgroundColor: ["#5B8CFF", "#28C7D9"],
-          borderRadius: 8,
+          backgroundColor: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#F7DC6F"],
+          borderColor: "rgba(255,255,255,0.4)",
+          borderWidth: 3,
         }],
       },
-      options: baseCartesianOptions({ plugins: { legend: { display: false } } }),
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: THEME.muted, padding: 15, font: { size: 12, weight: 600 } } },
+          tooltip: { backgroundColor: "rgba(0,0,0,0.9)", titleColor: "#fff", bodyColor: "#fff", padding: 12 },
+        },
+      },
     });
 
+    // 8. Club Activity - Vibrant Bars
     renderChart("club", "chartClub", {
       type: "bar",
       data: {
@@ -479,13 +675,16 @@
         datasets: [{
           label: "Attendance %",
           data: (payload.club?.rates || []).map((v) => Number(v) * 100),
-          backgroundColor: ["#FF7F66", "#FFB44A", "#1FD199"],
+          backgroundColor: EXTENDED_PALETTE.slice(0, Math.max(3, Math.min(12, (payload.club?.labels || []).length))),
           borderRadius: 8,
+          borderWidth: 2,
+          borderColor: "rgba(255,255,255,0.3)",
         }],
       },
       options: baseCartesianOptions({ plugins: { legend: { display: false } } }),
     });
 
+    // 9. Exam Proximity - Gradient Colors
     const examLabels = (payload.exam?.labels || []).map((v) => {
       if (Number(v) === 1) return "Near";
       if (Number(v) === 2) return "Moderate";
@@ -498,22 +697,103 @@
         datasets: [{
           label: "Attendance %",
           data: (payload.exam?.rates || []).map((v) => Number(v) * 100),
-          backgroundColor: ["#FF7F66", "#FFB44A", "#1FD199"],
+          backgroundColor: ["#FF6B6B", "#F7DC6F", "#1FD199"],
           borderRadius: 8,
+          borderWidth: 2,
+          borderColor: "rgba(255,255,255,0.3)",
         }],
       },
       options: baseCartesianOptions({ plugins: { legend: { display: false } } }),
     });
 
-    renderChart("dept", "chartDept", {
+    // 10. Department Stacked Bar Chart
+    renderChart("deptStacked", "chartDeptStacked", {
+      type: "bar",
+      data: {
+        labels: payload.department?.labels || [],
+        datasets: [
+          {
+            label: "Attended",
+            data: (payload.department?.rates || []).map((v) => Number(v) * 100),
+            backgroundColor: "#4ECDC4",
+            borderRadius: 6,
+          },
+          {
+            label: "Not Attended",
+            data: (payload.department?.rates || []).map((v) => (1 - Number(v)) * 100),
+            backgroundColor: "rgba(157, 178, 216, 0.3)",
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y",
+        plugins: {
+          legend: { labels: { color: THEME.muted, padding: 15 } },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: { color: THEME.muted },
+            grid: { color: "rgba(157, 178, 216, 0.08)" },
+          },
+          y: {
+            stacked: true,
+            ticks: { color: THEME.muted },
+            grid: { color: "rgba(157, 178, 216, 0.11)" },
+          },
+        },
+      },
+    });
+
+    // 11. Semester Distribution - Pie Chart
+    renderChart("semesterPie", "chartSemesterPie", {
+      type: "doughnut",
+      data: {
+        labels: payload.semester?.labels || [],
+        datasets: [{
+          label: "Attendance %",
+          data: (payload.semester?.rates || []).map((v) => Number(v) * 100),
+          backgroundColor: ["#45B7D1", "#BB8FCE", "#F8B88B", "#85C1E9"],
+          borderColor: "rgba(255,255,255,0.4)",
+          borderWidth: 3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: THEME.muted, padding: 15, font: { size: 12, weight: 600 } } },
+          tooltip: { backgroundColor: "rgba(0,0,0,0.9)", titleColor: "#fff", bodyColor: "#fff", padding: 12 },
+        },
+      },
+    });
+
+    renderHeatmap(payload.heatmap || {});
+  }
+
+  function renderFilteredTopicInsights(payload) {
+    state.lastTopicAnalysis = payload;
+    const summary = payload.summary || {};
+    setText(
+      "topicInsightSummary",
+      `${payload.selected_topic || "All Topics"}: ${formatRate(summary.rate || 0, 1)} attendance across ${summary.events || 0} events and ${summary.registrations || 0} registrations.`,
+    );
+
+    // Department Bar Chart
+    renderChart("topicFilterDept", "chartTopicFilterDept", {
       type: "bar",
       data: {
         labels: payload.department?.labels || [],
         datasets: [{
           label: "Attendance %",
           data: (payload.department?.rates || []).map((v) => Number(v) * 100),
-          backgroundColor: "#28C7D9",
+          backgroundColor: EXTENDED_PALETTE.slice(0, Math.max(3, Math.min(12, (payload.department?.labels || []).length))),
           borderRadius: 8,
+          borderWidth: 2,
+          borderColor: "rgba(255,255,255,0.4)",
         }],
       },
       options: baseCartesianOptions({
@@ -522,21 +802,91 @@
       }),
     });
 
-    renderChart("semester", "chartSemester", {
-      type: "bar",
+    // Mode Doughnut Chart with enhanced styling
+    renderChart("topicFilterMode", "chartTopicFilterMode", {
+      type: "doughnut",
       data: {
-        labels: payload.semester?.labels || [],
+        labels: payload.mode?.labels || [],
         datasets: [{
           label: "Attendance %",
-          data: (payload.semester?.rates || []).map((v) => Number(v) * 100),
-          backgroundColor: "#5B8CFF",
+          data: (payload.mode?.rates || []).map((v) => Number(v) * 100),
+          backgroundColor: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#F7DC6F"],
+          borderColor: "rgba(255,255,255,0.5)",
+          borderWidth: 3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: THEME.muted, padding: 15, font: { size: 11, weight: 600 } } },
+          tooltip: { backgroundColor: "rgba(0,0,0,0.9)", titleColor: "#fff", bodyColor: "#fff", padding: 10 },
+        },
+      },
+    });
+
+    // Club Activity Bar Chart
+    renderChart("topicFilterClub", "chartTopicFilterClub", {
+      type: "bar",
+      data: {
+        labels: payload.club?.labels || [],
+        datasets: [{
+          label: "Attendance %",
+          data: (payload.club?.rates || []).map((v) => Number(v) * 100),
+          backgroundColor: EXTENDED_PALETTE.slice(0, Math.max(3, Math.min(12, (payload.club?.labels || []).length))),
           borderRadius: 8,
+          borderWidth: 2,
+          borderColor: "rgba(255,255,255,0.4)",
         }],
       },
       options: baseCartesianOptions({ plugins: { legend: { display: false } } }),
     });
+  }
 
-    renderHeatmap(payload.heatmap || {});
+  function setupEdaFilters(options, charts) {
+    fillSelect("edaTopicFilter", ["All Topics", ...(options.topics || [])], ["All Topics"]);
+    fillSelect("edaSchoolFilter", ["All Schools", ...(charts.department?.labels || [])], ["All Schools"]);
+
+    const applyButton = byId("applyEdaFilterButton");
+    const clearButton = byId("clearEdaFilterButton");
+
+    applyButton?.addEventListener("click", () => {
+      applyEdaFilters();
+    });
+
+    clearButton?.addEventListener("click", () => {
+      const topicFilter = byId("edaTopicFilter");
+      const schoolFilter = byId("edaSchoolFilter");
+      if (topicFilter) {
+        topicFilter.value = "All Topics";
+      }
+      if (schoolFilter) {
+        schoolFilter.value = "All Schools";
+      }
+      applyEdaFilters();
+    });
+  }
+
+  async function applyEdaFilters() {
+    const topic = byId("edaTopicFilter")?.value || "All Topics";
+    const school = byId("edaSchoolFilter")?.value || "All Schools";
+
+    const query = new URLSearchParams();
+    if (topic && topic !== "All Topics") {
+      query.set("topic", topic);
+    }
+    if (school && school !== "All Schools") {
+      query.set("school", school);
+    }
+
+    try {
+      const path = query.toString() ? `/topic-analysis?${query.toString()}` : "/topic-analysis";
+      const payload = await apiRequest(path);
+      renderFilteredTopicInsights(payload);
+    } catch (error) {
+      showToast(`Filter apply failed: ${error.message}`, "error");
+      console.error(error);
+    }
   }
 
   function renderModelPage(modelDetails) {
@@ -680,21 +1030,26 @@
 
   async function loadInitialData() {
     try {
-      const [health, overview, options, charts, modelDetails] = await Promise.all([
-        apiRequest("/health"),
-        apiRequest("/overview"),
-        apiRequest("/options"),
-        apiRequest("/charts"),
-        apiRequest("/model-details"),
-      ]);
-
+      updateSplashProgress("Loading health...", 15);
+      const health = await apiRequest("/health");
       setHealthBadge(Boolean(health.ok));
+      
+      updateSplashProgress("Loading overview...", 30);
+      const overview = await apiRequest("/overview");
       state.overview = overview;
-      state.options = options;
-      state.chartsPayload = charts;
-      state.modelDetails = modelDetails;
-
       updatePredictSummary(overview);
+      
+      updateSplashProgress("Loading options...", 45);
+      const options = await apiRequest("/options");
+      state.options = options;
+      
+      updateSplashProgress("Loading charts...", 60);
+      const charts = await apiRequest("/charts");
+      state.chartsPayload = charts;
+      
+      updateSplashProgress("Loading model...", 75);
+      const modelDetails = await apiRequest("/model-details");
+      state.modelDetails = modelDetails;
 
       fillSelect("topicInput", options.topics || []);
       fillSelect("speakerTypeInput", options.speaker_types || []);
@@ -702,13 +1057,21 @@
       fillSelect("timeSlotInput", options.time_slots || []);
       fillSelect("modeInput", options.modes || ["Offline", "Online"]);
       fillSelect("promotionLevelInput", options.promotion_levels || ["Low", "Medium", "High"]);
-
+      
+      updateSplashProgress("Rendering visualizations...", 85);
+      setupEdaFilters(options, charts);
       renderEdaCharts(charts);
+      await applyEdaFilters();
       renderModelPage(modelDetails);
+      
+      updateSplashProgress("Ready!", 100);
+      hideSplash(100);
     } catch (error) {
       setHealthBadge(false, "API Error");
+      updateSplashProgress(`Error: ${error.message}`, 100);
       showToast(`Initialization failed: ${error.message}`, "error");
       console.error(error);
+      hideSplash(2000);
     }
   }
 
@@ -743,6 +1106,23 @@
     } else {
       advice.textContent = "High turnout expected. Prepare larger venue capacity and additional engagement support.";
       advice.classList.add("good");
+    }
+  }
+
+  function applyPredictionRisk(rate) {
+    const box = byId("predictionResult");
+    if (!box) {
+      return;
+    }
+
+    box.classList.remove("risk-high", "risk-medium", "risk-low");
+
+    if (rate >= 0.7) {
+      box.classList.add("risk-high");
+    } else if (rate >= 0.4) {
+      box.classList.add("risk-medium");
+    } else {
+      box.classList.add("risk-low");
     }
   }
 
@@ -811,6 +1191,7 @@
         setText("resultConfidence", confidenceLabel);
         setText("resultProbability", `Average model probability: ${formatRate(probability, 1)} (${confidenceLabel})`);
 
+        applyPredictionRisk(rate);
         updatePredictionRing(rate);
         setPredictionAdvice(Number(result.predicted_attendees || 0));
 
@@ -839,6 +1220,7 @@
 
   function init() {
     initSplash();
+    setupThemeToggle();
     setupTabs();
     setupFormControls();
     setupPredictionSubmit();
