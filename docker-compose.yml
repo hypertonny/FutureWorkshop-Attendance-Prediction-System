@@ -1,10 +1,12 @@
 services:
-  streamlit:
+  api_server:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: futureworkshop_app
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8000"
     volumes:
       - ./data:/app/data
       - ./models:/app/models
@@ -33,7 +35,7 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./nginx/logs:/var/log/nginx
     depends_on:
-      - streamlit
+      - api_server
     networks:
       - app_network
 

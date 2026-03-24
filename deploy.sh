@@ -71,7 +71,7 @@ echo -e "${YELLOW}Waiting for services to be ready...${NC}"
 sleep 10
 
 # Check if containers are running
-if [ "$(docker compose ps -q streamlit)" ] && [ "$(docker compose ps -q nginx)" ]; then
+if [ "$(docker compose ps -q api_server)" ] && [ "$(docker compose ps -q nginx)" ]; then
     echo -e "${GREEN}✅ All containers are running${NC}"
     echo ""
     

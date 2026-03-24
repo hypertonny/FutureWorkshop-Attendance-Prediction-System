@@ -319,9 +319,31 @@ def build_charts_payload(df: pd.DataFrame) -> dict:
     return payload
 
 
-def build_topic_analysis_payload(df: pd.DataFrame, topic: str | None = None) -> dict:
+def build_topic_analysis_payload(
+    df: pd.DataFrame,
+    topic: str | None = None,
+    school: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict:
     selected_topic = (topic or "All Topics").strip()
+    selected_school = (school or "All Schools").strip()
     available_topics = _safe_unique(df, "topic")
+
+    if selected_school and selected_school != "All Schools" and "department" in df.columns:
+        df = df[df["department"].astype(str) == selected_school].copy()
+
+    if (date_from or date_to) and "event_date" in df.columns:
+        date_series = pd.to_datetime(df["event_date"], errors="coerce")
+        if date_from:
+            from_dt = pd.to_datetime(date_from, errors="coerce")
+            if pd.notna(from_dt):
+                df = df[date_series >= from_dt].copy()
+                date_series = pd.to_datetime(df["event_date"], errors="coerce")
+        if date_to:
+            to_dt = pd.to_datetime(date_to, errors="coerce")
+            if pd.notna(to_dt):
+                df = df[date_series <= to_dt].copy()
 
     if selected_topic and selected_topic != "All Topics":
         topic_df = df[df["topic"].astype(str) == selected_topic].copy() if "topic" in df.columns else df.iloc[0:0].copy()
@@ -332,6 +354,7 @@ def build_topic_analysis_payload(df: pd.DataFrame, topic: str | None = None) -> 
     if topic_df.empty:
         return {
             "selected_topic": selected_topic,
+            "selected_school": selected_school,
             "available_topics": available_topics,
             "summary": {
                 "events": 0,
@@ -393,6 +416,7 @@ def build_topic_analysis_payload(df: pd.DataFrame, topic: str | None = None) -> 
 
     return {
         "selected_topic": selected_topic,
+        "selected_school": selected_school,
         "available_topics": available_topics,
         "summary": summary,
         "department": department,
@@ -521,7 +545,10 @@ class WorkshopRequestHandler(SimpleHTTPRequestHandler):
             if path == "/api/topic-analysis":
                 df = load_dataset()
                 topic = query.get("topic", [None])[0]
-                _json_response(self, 200, build_topic_analysis_payload(df, topic))
+                school = query.get("school", [None])[0]
+                date_from = query.get("date_from", [None])[0]
+                date_to = query.get("date_to", [None])[0]
+                _json_response(self, 200, build_topic_analysis_payload(df, topic, school, date_from, date_to))
                 return
 
             if path == "/api/model-details":
